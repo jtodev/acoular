@@ -15,6 +15,7 @@ Upcoming Release
             * adds unittests `test_process.py`, `test_fprocess.py`
             * adds documentation example `example_fft.py`
                 * allow more platforms to build the docs files including Linux, MacOS, and Windows 
+        * adds a pull request template
     
     **Bugfixes**
         * flush file in :class:`~acoular.tprocess.TimeCache` to prevent data loss / corruption
