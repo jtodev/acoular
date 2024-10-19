@@ -21,6 +21,7 @@ Upcoming Release
         * fixes use of already deprecated traits
         * fixes import order to avoid the deactivation of parallelization of numba
         * fixes numpy.matlib deprecation warning
+        * reduces (almost) all line lengths to 120 characters or less
 
     **Documentation**
         * updates literature and adds `sphinxcontrib-bibtex` extension to support bibtex citation in the documentation.
