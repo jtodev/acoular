@@ -146,8 +146,7 @@ class SpectraGenerator(Generator):
 
 
 class TimeOut(SamplesGenerator):
-    """Abstract base class for any signal processing block that receives data from any :attr:`source` domain and returns
-    time domain signals.
+    """Abstract base class for any signal processing block that receives source data and returns time domain signals.
 
     It provides a base class that can be used to create signal processing blocks that receive data from any
     generating :attr:`source` and generates a time signal output via the generator :meth:`result` in block-wise manner.
