@@ -13,6 +13,6 @@ jobs:
             - name: 'Auto-assign PR'
               uses: pozil/auto-assign-issue@v2
               with:
-                  assignees: jtodev,adku1173
+                  assignees: jtodev
                   numOfAssignee: 1
-                  allowSelfAssign: false
+                  allowSelfAssign: true
