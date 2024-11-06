@@ -244,9 +244,7 @@ class MaskedTimeOut(TimeOut):
 
 
 class ChannelMixer(TimeOut):
-    """Class for directly mixing the channels of a multi-channel source.
-    Outputs a single channel.
-    """
+    """Class for directly mixing the channels of a multi-channel source. Outputs a single channel."""
 
     #: Data source; :class:`~acoular.base.SamplesGenerator` or derived object.
     source = Instance(SamplesGenerator)
@@ -294,6 +292,7 @@ class ChannelMixer(TimeOut):
 
 class Trigger(TimeOut):
     """Class for identifying trigger signals.
+
     Gets samples from :attr:`source` and stores the trigger samples in :meth:`trigger_data`.
 
     The algorithm searches for peaks which are above/below a signed threshold.
@@ -487,8 +486,7 @@ class Trigger(TimeOut):
 
 
 class AngleTracker(MaskedTimeOut):
-    """Calculates rotation angle and rpm per sample from a trigger signal
-    using spline interpolation in the time domain.
+    """Calculates rotation angle and rpm per sample from a trigger signal using spline interpolation in the time domain.
 
     Gets samples from :attr:`trigger` and stores the angle and rpm samples in :meth:`angle` and :meth:`rpm`.
 
@@ -553,8 +551,7 @@ class AngleTracker(MaskedTimeOut):
         return (abs(peakarray - value)).argmin()
 
     def _to_rpm_and_angle(self):
-        """Internal helper function
-        Calculates angles in radians for one or more instants in time.
+        """Internal helper function. Calculates angles in radians for one or more instants in time.
 
         Current version supports only trigger and sources with the same samplefreq.
         This behaviour may change in future releases
@@ -643,8 +640,8 @@ class AngleTracker(MaskedTimeOut):
 
 class SpatialInterpolator(TimeOut):
     """Base class for spatial interpolation of microphone data.
-    Gets samples from :attr:`source` and generates output via the
-    generator :meth:`result`.
+
+    Gets samples from :attr:`source` and generates output via the generator :meth:`result`.
     """
 
     #: Data source; :class:`~acoular.base.SamplesGenerator` or derived object.
@@ -1129,8 +1126,10 @@ class SpatialInterpolator(TimeOut):
 
 
 class SpatialInterpolatorRotation(SpatialInterpolator):
-    """Spatial  Interpolation for rotating sources. Gets samples from :attr:`source`
-    and angles from  :attr:`AngleTracker`.Generates output via the generator :meth:`result`.
+    """Spatial  Interpolation for rotating sources.
+
+    Gets samples from :attr:`source` and angles from  :attr:`AngleTracker`.
+    Generates output via the generator :meth:`result`.
 
     """
 
@@ -1185,8 +1184,8 @@ class SpatialInterpolatorRotation(SpatialInterpolator):
 
 class SpatialInterpolatorConstantRotation(SpatialInterpolator):
     """Spatial linear Interpolation for constantly rotating sources.
-    Gets samples from :attr:`source` and generates output via the
-    generator :meth:`result`.
+
+    Gets samples from :attr:`source` and generates output via the generator :meth:`result`.
     """
 
     #: Rotational speed in rps. Positive, if rotation is around positive z-axis sense,
@@ -1281,8 +1280,8 @@ class Mixer(TimeOut):
 
     def result(self, num):
         """Python generator that yields the output block-wise.
-        The output from the source and those in the list
-        sources are being added.
+
+        The output from the source and those in the list sources are being added.
 
         Parameters
         ----------
@@ -1410,10 +1409,9 @@ class TimeReverse(TimeOut):
 
 
 class Filter(TimeOut):
-    """Abstract base class for IIR filters based on scipy lfilter
-    implements a filter with coefficients that may be changed
-    during processing.
+    """ABC for IIR filters based on scipy lfilter.
 
+    Implements a filter with coefficients that may be changed during processing.
     Should not be instanciated by itself
     """
 
@@ -1564,8 +1562,10 @@ class FiltFiltOctave(FiltOctave):
 
 
 class TimeExpAverage(Filter):
-    """Computes exponential averaging according to IEC 61672-1
+    """Computes exponential averaging according to IEC 61672-1.
+
     time constant: F -> 125 ms, S -> 1 s
+
     I (non-standard) -> 35 ms.
     """
 
@@ -1629,10 +1629,9 @@ class FiltFreqWeight(Filter):
 
 
 class FilterBank(TimeOut):
-    """Abstract base class for IIR filter banks based on scipy lfilter
-    implements a bank of parallel filters.
+    """ABC for IIR filter banks based on scipy lfilter.
 
-    Should not be instanciated by itself
+    Implements a bank of parallel filters. Should not be instanciated by itself.
     """
 
     #: Data source; :class:`~acoular.base.SamplesGenerator` or derived object.
@@ -1737,9 +1736,7 @@ class OctaveFilterBank(FilterBank):
 
 
 class WriteWAV(TimeOut):
-    """Saves time signal from one or more channels as mono/stereo/multi-channel
-    `*.wav` file.
-    """
+    """Saves time signal from one or more channels as mono/stereo/multi-channel `*.wav` file."""
 
     #: Data source; :class:`~acoular.base.SamplesGenerator` or derived object.
     source = Instance(SamplesGenerator)
@@ -1869,9 +1866,7 @@ class WriteH5(TimeOut):
                 f5h.create_array('/metadata', key, value)
 
     def result(self, num):
-        """Python generator that saves source output to `*.h5` file and
-        yields the source output block-wise.
-
+        """Python generator that saves source output to `*.h5` file and yields the source output block-wise.
 
         Parameters
         ----------
@@ -1975,6 +1970,7 @@ class TimeConvolve(TimeOut):
 
     def result(self, num=128):
         """Python generator that yields the output block-wise.
+
         The source output is convolved with the kernel.
 
         Parameters

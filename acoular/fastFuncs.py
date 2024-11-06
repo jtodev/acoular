@@ -1,9 +1,7 @@
 # ------------------------------------------------------------------------------
 # Copyright (c) Acoular Development Team.
 # ------------------------------------------------------------------------------
-"""Contains all the functionalities which are very expansive, regarding
-computational costs. All functionalities are optimized via NUMBA.
-"""
+"""Contains all computationally expansive functionalities; all optimized via NUMBA."""
 
 import numba as nb
 import numpy as np
@@ -25,6 +23,7 @@ FAST_OPTION = True  # fastmath options
 )
 def calcCSM(csm, SpecAllMics):
     """Adds a given spectrum to the Cross-Spectral-Matrix (CSM).
+
     Here only the upper triangular matrix of the CSM is calculated. After
     averaging over the various ensembles, the whole CSM is created via complex
     conjugation transposing. This happens outside
@@ -54,9 +53,9 @@ def calcCSM(csm, SpecAllMics):
 
 
 def beamformerFreq(steerVecType, boolRemovedDiagOfCSM, normFactor, inputTupleSteer, inputTupleCsm):
-    r"""Conventional beamformer in frequency domain. Use either a predefined
-    steering vector formulation (see Sarradj 2012) or pass your own
-    steering vector.
+    r"""Conventional beamformer in frequency domain.
+
+    Use either a predefined steering vector formulation (see Sarradj 2012) or pass your own steering vector.
 
     Parameters
     ----------
@@ -519,7 +518,9 @@ def _freqBeamformer_EigValProb_SpecificSteerVec_CsmRemovedDiag(
 
 # %% Point - Spread - Function
 def calcPointSpreadFunction(steerVecType, distGridToArrayCenter, distGridToAllMics, waveNumber, indSource, dtype):
-    r"""Calculates the Point-Spread-Functions. Use either a predefined steering vector
+    r"""Calculates the Point-Spread-Functions.
+
+    Use either a predefined steering vector
     formulation (see :ref:`Sarradj, 2012<Sarradj2012>`) or pass it your own steering vector.
 
     Parameters
@@ -771,6 +772,7 @@ def _psf_Formulation4AkaTrueLocation(
 )
 def damasSolverGaussSeidel(A, dirtyMap, nIterations, relax, damasSolution):
     """Solves the DAMAS inverse problem via modified gauss seidel.
+
     This is the original formulation from :ref:`Brooks and Humphreys, 2006<BrooksHumphreys2006>`.
 
     Parameters

@@ -25,7 +25,7 @@ ignore = [
     # D
     "D203", # don't enforce blank line before docstring
     "D401", # first line should be in imperative mood -> TBD
-    "D205", # 1 blank line required between summary line and description -> should be fixed by issue #216
+    # "D205", # 1 blank line required between summary line and description -> should be fixed by issue #216
     "D100", # missing docstring in public module -> should be fixed by issue #216
     "D101", # missing docstring in public class -> should be fixed by issue #216
     "D102", # missing docstring in public method -> should be fixed by issue #216

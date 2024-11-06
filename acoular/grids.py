@@ -92,8 +92,7 @@ def in_hull(p, hull, border=True, tol=0):
 
 
 def _det(xvert, yvert):
-    """Compute twice the area of the triangle defined by points with using
-    determinant formula.
+    """Compute twice the area of the triangle defined by points with using determinant formula.
 
     Input parameters:
 

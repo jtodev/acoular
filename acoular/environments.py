@@ -86,7 +86,9 @@ def dist_mat(gpos, mpos):
 
 
 def cartToCyl(x, Q=None):  # noqa: N802, N803
-    """Returns the cylindrical coordinate representation of a input position
+    """Converts a cartesian coordinate representation of an input position into cylindrical coordinates.
+
+    Returns the cylindrical coordinate representation of an input position
     which was before transformed into a modified cartesian coordinate, which
     has flow into positive z direction.
 
@@ -112,7 +114,9 @@ def cartToCyl(x, Q=None):  # noqa: N802, N803
 
 
 def cylToCart(x, Q=None):  # noqa: N802, N803
-    """Returns the cartesian coordinate representation of a input position
+    """Converts cylindrical coordinate representation of an input position into cartesian coordinates.
+
+    Returns the cartesian coordinate representation of an input position
     which was before transformed into a cylindrical coordinate, which
     has flow into positive z direction.
 
@@ -162,8 +166,9 @@ class Environment(HasPrivateTraits):
         return digest(self)
 
     def _r(self, gpos, mpos=0.0):
-        """Calculates distances between grid point locations and microphone
-        locations or the origin. Functionality may change in the future.
+        """Calculates distances between grid point locations and microphone locations or the origin.
+
+        Functionality may change in the future.
 
         Parameters
         ----------
@@ -218,9 +223,10 @@ class UniformFlowEnvironment(Environment):
         return digest(self)
 
     def _r(self, gpos, mpos=0.0):
-        """Calculates the virtual distances between grid point locations and
-        microphone locations or the origin. These virtual distances correspond
-        to travel times of the sound. Functionality may change in the future.
+        """Calculates the virtual distances between grid point locations and microphone locations or the origin.
+
+        These virtual distances correspond to travel times of the sound.
+        Functionality may change in the future.
 
         Parameters
         ----------
@@ -253,7 +259,7 @@ class UniformFlowEnvironment(Environment):
 
 
 class FlowField(HasPrivateTraits):
-    """An abstract base class for a spatial flow field."""
+    """An ABC for a spatial flow field."""
 
     digest = Property
 
@@ -261,8 +267,9 @@ class FlowField(HasPrivateTraits):
         return ''
 
     def v(self, xx):  # noqa: ARG002
-        """Provides the flow field as a function of the location. This is
-        implemented here for the possibly most simple case: a quiescent fluid.
+        """Provides the flow field as a function of the location.
+
+        This is implemented here for the possibly most simple case: a quiescent fluid.
 
         Parameters
         ----------
@@ -317,8 +324,9 @@ class SlotJet(FlowField):
         return digest(self)
 
     def v(self, xx):
-        """Provides the flow field as a function of the location. This is
-        implemented here only for the component in the direction of :attr:`flow`;
+        """Provides the flow field as a function of the location.
+
+        This is implemented here only for the component in the direction of :attr:`flow`;
         entrainment components are set to zero.
 
         Parameters
@@ -399,9 +407,9 @@ class OpenJet(FlowField):
         return digest(self)
 
     def v(self, xx):
-        """Provides the flow field as a function of the location. This is
-        implemented here only for a jet in `x`-direction and the `y`- and
-        `z`-components are set to zero.
+        """Provides the flow field as a function of the location.
+
+        This is implemented here only for a jet in `x`-direction and the `y`- and `z`-components are set to zero.
 
         Parameters
         ----------
@@ -505,8 +513,9 @@ class RotatingFlow(FlowField):
 
 
 def spiral_sphere(N, Om=None, b=None):  # noqa: N803 # change to 4*pi
-    """Internal helper function for the raycasting that returns an array of
-    unit vectors (N, 3) giving equally distributed directions on a part of
+    """Internal helper function for the raycasting.
+
+    It returns an array of unit vectors (N, 3) giving equally distributed directions on a part of
     sphere given by the center direction b and the solid angle Om.
     """
     Om = 2 * pi if Om is None else Om
@@ -566,10 +575,10 @@ class GeneralFlowEnvironment(Environment):
         return digest(self)
 
     def _r(self, gpos, mpos=0.0):
-        """Calculates the virtual distances between grid point locations and
-        microphone locations or the origin. These virtual distances correspond
-        to travel times of the sound along a ray that is traced through the
-        medium. Functionality may change in the future.
+        """Calculates the virtual distances between grid point locations and microphone locations or the origin.
+
+        These virtual distances correspond to travel times of the sound along a ray that is traced through the medium.
+        Functionality may change in the future.
 
         Parameters
         ----------

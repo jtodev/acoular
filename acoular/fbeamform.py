@@ -472,9 +472,9 @@ class BeamformerBase(HasPrivateTraits):
         return digest(self)
 
     def _get_filecache(self):
-        """Function collects cached results from file depending on
-        global/local caching behaviour. Returns (None, None) if no cachefile/data
-        exist and global caching mode is 'readonly'.
+        """Collects cached results from file depending on global/local caching behaviour.
+
+        Returns (None, None) if no cachefile/data exist and global caching mode is 'readonly'.
         """
         #        print("get cachefile:", self.freq_data.basename)
         H5cache.get_cache_file(self, self.freq_data.basename)
@@ -529,6 +529,7 @@ class BeamformerBase(HasPrivateTraits):
     @property_depends_on('digest')
     def _get_result(self):
         """Implements the :attr:`result` getter routine.
+
         The beamforming result is either loaded or calculated.
         """
         # store locally for performance
@@ -560,8 +561,10 @@ class BeamformerBase(HasPrivateTraits):
         return LazyBfResult(self)
 
     def sig_loss_norm(self):
-        """If the diagonal of the CSM is removed one has to handle the loss
-        of signal energy --> Done via a normalization factor.
+        """Returns normalization factor for a CSM with removed diagonal.
+
+        If the diagonal of the CSM is removed, the loss of signal energy has to be handled.
+        For this an appropriate normalization factor is chosen.
         """
         if not self.r_diag:  # Full CSM --> no normalization needed
             normfactor = 1.0
@@ -574,8 +577,8 @@ class BeamformerBase(HasPrivateTraits):
 
     def _beamformer_params(self):
         """Manages the parameters for calling of the core beamformer functionality.
-        This is a workaround to allow faster calculation and may change in the
-        future.
+
+        This is a workaround to allow faster calculation and may change in the future.
 
         Returns
         -------
@@ -1234,9 +1237,9 @@ class PointSpreadFunction(HasPrivateTraits):
         return digest(self)
 
     def _get_filecache(self):
-        """Function collects cached results from file depending on
-        global/local caching behaviour. Returns (None, None) if no cachefile/data
-        exist and global caching mode is 'readonly'.
+        """Function collects cached results from file depending on global/local caching behaviour.
+
+        Returns (None, None) if no cachefile/data exist and global caching mode is 'readonly'.
         """
         filename = 'psf' + self.digest
         nodename = ('Hz_%.2f' % self.freq).replace('.', '_')
@@ -1269,6 +1272,7 @@ class PointSpreadFunction(HasPrivateTraits):
 
     def _get_psf(self):
         """Implements the :attr:`psf` getter routine.
+
         The point spread function is either loaded or calculated.
         """
         gs = self.steer.grid.size
@@ -1461,8 +1465,9 @@ class BeamformerDamas(BeamformerBase):
 
 
 class BeamformerDamasPlus(BeamformerDamas):
-    """DAMAS deconvolution :cite:`Brooks2006` for solving the system of equations, instead of the original Gauss-Seidel
-    iterations, this class employs the NNLS or linear programming solvers from
+    """DAMAS deconvolution :cite:`Brooks2006` for solving the system of equations.
+
+    Instead of the original Gauss-Seidel iterations, this class employs the NNLS or linear programming solvers from
     scipy.optimize or one  of several optimization algorithms from the scikit-learn module.
     Needs a-priori delay-and-sum beamforming (:class:`BeamformerBase`).
     """

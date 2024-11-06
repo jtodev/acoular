@@ -3,7 +3,7 @@
 # ------------------------------------------------------------------------------
 """Implements base classes for signal processing blocks in Acoular.
 
-The classes in this module are abstract base classes that provide a common interface for all classes that generate an
+The classes in this module are ABCs that provide a common interface for all classes that generate an
 output via the generator :meth:`result` in block-wise manner. They are not intended to be used directly, but to be
 subclassed by classes that implement the actual signal processing.
 
@@ -191,8 +191,7 @@ class TimeOut(SamplesGenerator):
 
 
 class SpectraOut(SpectraGenerator):
-    """Abstract base class for any signal processing block that receives data from any :attr:`source` domain and
-    returns frequency domain signals.
+    """Abstract base class for any signal processing block that receives source data and returns time domain signals.
 
     It provides a base class that can be used to create signal processing blocks that receive data from any
     generating :attr:`source` domain and generates a frequency domain output via the generator :meth:`result`
@@ -245,8 +244,7 @@ class SpectraOut(SpectraGenerator):
 
 
 class InOut(SamplesGenerator, SpectraGenerator):
-    """Abstract base class for any signal processing block that receives data from any :attr:`source` domain and returns
-    signals in the same domain.
+    """Abstract base class for any signal processing block that receives source data and returns time domain signals.
 
     It provides a base class that can be used to create signal processing blocks that receive data from any
     generating :attr:`source` and generates an output via the generator :meth:`result` in block-wise manner.
