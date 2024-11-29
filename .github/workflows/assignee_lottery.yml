@@ -1,4 +1,4 @@
-name: 'Auto-assign assignee'
+name: 'Auto Assign'
 on:
     pull_request:
         types: [opened, reopened]
