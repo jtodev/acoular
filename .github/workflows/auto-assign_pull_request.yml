@@ -1,7 +1,7 @@
 name: 'Auto-assign assignee'
 on:
     pull_request:
-        types: [opened, reopened]
+        types: [opened]
 
 jobs:
     add-reviews:
