@@ -82,31 +82,37 @@ from .internal import digest
 
 def in_hull(p, hull, border=True, tol=0):
     """
-    Test if points in `p` are in :attr:`hull`, in- or excluding the border.
+    Test if points in ``p`` are in ``hull``, in- or excluding the border.
 
     Parameters
     ----------
-    p : ndarray of floats, shape (N, K)
+    p : ndarray of floats, shape `(N, K)`
         Coordinates of `N` points in `K` dimensions.
-    hull : ndarray of floats, shape (M, K), or :class:`scipy.spatial.Delaunay` object
+    hull : ndarray of floats, shape `(M, K)`, or :class:`~scipy.spatial.Delaunay` object
         Coordinates of `M` points in `K` dimensions for which Delaunay triangulation will be
         computed.
     border : bool, optional
+<<<<<<< HEAD
         Points in :attr:`p` on the border of :attr:`hull` will be kept in the return if `True`. If
 <<<<<<< HEAD
         `False`, only points inside :attr:`hull` will be kept. Default is `True`.
 =======
         `False`, only points inside :attr:`hull` will be kept.  Default is `True`.
 >>>>>>> a8edd48 (Documentation)
+=======
+        Whether elements of ``p`` on the border of ``hull`` will be included. Default is
+        ``True``.
+>>>>>>> d75f4e7 (Documentation for grids.py)
     tol : float, optional
-        Tolerance allowed in the inside-triangle check. Default is `0`.
+        Tolerance allowed in the :meth:`inside-triangle check<scipy.spatial.Delaunay.find_simplex>`.
+        Default is ``0``.
 
     Returns
     -------
     ndarray of bool
-        An array of boolean values indicating which points in :attr:`p` are inside the hull, same
-        shape as :attr:`p`. Each entry is `True` if the corresponding point is inside the hull (or
-        on the border, if `:attr:border=True`), and `False` otherwise.
+        An array of boolean values indicating which points in ``p`` are inside the hull, same
+        shape as ``p``. Each entry is ``True`` if the corresponding point is inside the hull (or
+        on the border, if ``border=True``), and ``False`` otherwise.
 
     Notes
     -----
@@ -144,9 +150,9 @@ class Polygon:
     """
     Create a Polygon object representing a general polygon in a 2D plane.
 
-    This class allows defining a polygon by specifying the coordinates of its vertices
-    and provides methods for checking whether a point (or multiple points) lies inside
-    the polygon, or if a point is closer to a side or vertex of the polygon.
+    This class allows defining a polygon by specifying the coordinates of its vertices and provides
+    methods for checking whether a set of points lies inside the polygon, or if a point is closer to
+    a side or vertex of the polygon.
 
     Parameters
     ----------
@@ -186,7 +192,7 @@ class Polygon:
 
     def is_inside(self, xpoint, ypoint, smalld=1e-12):
         """
-        Check if a sigle point is or multiple points are inside a general polygon.
+        Check if a point or set of points are inside the polygon.
 
         Parameters
         ----------
@@ -197,17 +203,17 @@ class Polygon:
             Array of y-coordinates of the points to be tested.
 
         smalld : float, optional
-            Small tolerance value used for floating point comparisons when checking if a point
-            is exactly on a polygon's side. The default value is `1e-12`.
+            Tolerance used for floating point comparisons when checking if a point is exactly on a
+            polygon's edge. The default value is ``1e-12``.
 
         Returns
         -------
         float or array_like
             The distance from the point to the nearest point on the polygon. The values returned
             have the following meanings:
-                - `mindst < 0`: Point is outside the polygon.
-                - `mindst = 0`: Point is on a side of the polygon.
-                - `mindst > 0`: Point is inside the polygon.
+                - ``mindst < 0``: Point is outside the polygon.
+                - ``mindst = 0``: Point is on an edge of the polygon.
+                - ``mindst > 0``: Point is inside the polygon.
 
         Notes
         -----
@@ -302,12 +308,11 @@ class Polygon:
 @deprecated_alias({'gpos': 'pos'})
 class Grid(ABCHasStrictTraits):
     """
-    Virtual base class for grid geometries.
+    Abstract base class for grid geometries.
 
-    This class defines a common interface for all grid geometries and provides tools to
-    query grid properties and related data. It is intended to serve as a base class for
-    specialized grid implementations and should not be used directly, as it lacks concrete
-    functionality.
+    This class defines a common interface for all grid geometries and provides tools to query grid
+    properties and related data. It is intended to serve as a base class for specialized grid
+    implementations and should not be instantiated directly as it lacks concrete functionality.
     """
 
     #: The total number of grid points. This property is automatically calculated based on other
@@ -355,14 +360,18 @@ class Grid(ABCHasStrictTraits):
 
         Parameters
         ----------
-        sector : :class:`Sector`
+        sector : :class:`Sector` object
             Sector describing the subdomain.
 
         Returns
         -------
         tuple
-            A 2-tuple of arrays of integers or `numpy.slice` objects that can be used to
-            mask or select the specified subdomain from a grid-shaped array.
+            A 2-tuple of arrays of integers or :obj:`numpy.s_` objects that can be used to mask or
+            select the specified subdomain from a grid-shaped array.
+
+        Notes
+        -----
+        The :func:`numpy.where` method is used to determine the the indices.
         """
         xpos = self.pos
         # construct grid-shaped array with "True" entries where sector is
@@ -520,15 +529,16 @@ class RectGrid(Grid):
         """
         Find the indices of a subdomain in the grid.
 
-        Supports rectangular, circular, or polygonal subdomains.
+        Supports rectangular, circular, and polygonal subdomains.
 
         Parameters
         ----------
         r : tuple of floats
             Defines the subdomain shape and dimensions:
-                - If 3 values are provided: center `(x1, y1)` and radius `r2` define a circle.
-                - If 4 values are provided: corners `(x1, y1)` and `(x2, y2)` define a rectangle.
-                - If more than 4 values are provided: vertices `(xn, yn)` define a polygon.
+                - If 3 values are provided: center ``(x1, y1)`` and radius ``r2`` define a circle.
+                - If 4 values are provided: corners ``(x1, y1)`` and ``(x2, y2)`` define a
+                  rectangle.
+                - If more than 4 values are provided: vertices ``(xn, yn)`` define a polygon.
 
         Returns
         -------
@@ -575,12 +585,20 @@ class RectGrid(Grid):
 
     def extend(self):
         """
-        Return the grid's extension in `pylab.imshow` compatible form.
+        Return the grid's extension in :obj:`matplotlib.pyplot.imshow` compatible form.
 
         Returns
         -------
         tuple of float
-            `(x_min, x_max, y_min, y_max)` representing the grid's extent.
+            (:attr:`x_min`, :attr:`x_max`, :attr:`y_min`, :attr:`y_max`) representing the grid's
+            extent.
+
+        Notes
+        -----
+        - ``pylab.imhow`` is the same as :obj:`matplotlib.pyplot.imshow`. It's only using a
+          different namespace.
+        - The return of the method is ment for the ``extent`` parameter of
+          :obj:`matplotlib.pyplot.imshow`.
 
         Examples
         --------
@@ -753,8 +771,8 @@ class RectGrid3D(RectGrid):
         """
         Return the indices for a grid point near a certain coordinate.
 
-        This can be used to query results or coordinates at or near a certain coordinate. Raises
-        error if given coordinate is outside the grid.
+        This can be used to query results or coordinates at or near a certain coordinate. Raises an
+        exception if the given coordinate is outside the grid.
 
         Parameters
         ----------
@@ -770,7 +788,7 @@ class RectGrid3D(RectGrid):
         Examples
         --------
         Check which of the points in a simple 8-point rectangular grid is closest to the point
-        (0.5, 0.5, 1.0).
+        ``(0.5, 0.5, 1.0)``.
 
         >>> import acoular as ac
         >>>
@@ -812,7 +830,8 @@ class RectGrid3D(RectGrid):
         Parameters
         ----------
         x1, y1, z1, x2, y2, z2 : float
-            A box-shaped sector is assumed that is given by two corners (x1,y1,z1) and (x2,y2,z2).
+            A box-shaped sector is assumed that is given by two corners ``(x1,y1,z1)`` and
+            ``(x2,y2,z2)``.
 
         Returns
         -------
@@ -974,6 +993,11 @@ class LineGrid(Grid):
     (:attr:`direction`), a total length (:attr:`length`), and the number of points
     (:attr:`num_points`) along the line.
 
+    Notes
+    -----
+    - The distance between points is :attr:`length` ``/ (`` :attr:`num_points` ``- 1)``.
+    - The direction vector is normalized to ensure consistency.
+
     Examples
     --------
     Create a line grid with 5 points along the x-axis, starting at (0, 0, 0), with a length of 4
@@ -989,11 +1013,6 @@ class LineGrid(Grid):
     array([[0., 1., 2., 3., 4.],
            [0., 0., 0., 0., 0.],
            [0., 0., 0., 0., 0.]])
-
-    Notes
-    -----
-    - The distance between points is :attr:`length` / (:attr:`num_points` - 1).
-    - The direction vector is normalized to ensure consistency.
     """
 
     #: Starting point of the grid in 3D space. Default is (0.0, 0.0, 0.0).
@@ -1211,7 +1230,7 @@ class MergeGrid(Grid):
 
 class Sector(ABCHasStrictTraits):
     """
-    Base class for all sector types.
+    Abstract base class for all sector types.
 
     The :class:`Sector` class defines the common interface for all sector implementations. It serves
     as the base class for creating diverse sector geometries, each capable of determining whether
@@ -1519,7 +1538,7 @@ class PolySector(SingleSector):
     """
 
     #: List of coordinates representing the polygon's vertices. The coordinates must define a closed
-    #: polygon like `x1, y1, x2, y2, ... xn, yn`.
+    #: polygon like ``x1, y1, x2, y2, ... xn, yn``.
     edges = List(Float)
 
     def contains(self, pos):
@@ -1527,19 +1546,19 @@ class PolySector(SingleSector):
         Check if the coordinates in a given array lie within the polygon sector.
 
         If no coordinate is inside, the nearest one to the rectangle center is returned if
-        :attr:`~SingleSector.default_nearest` is `True`.
+        :attr:`~SingleSector.default_nearest` is ``True``.
 
         Parameters
         ----------
         pos : array of floats
-            A (3, N) array containing the positions of N grid points, where each point is
-            represented by its x, y, and z coordinates.
+            A (3, N) array containing the positions of N grid points where each point is represented
+            by its x, y, and z coordinates.
 
         Returns
         -------
         array of bools, shape (N,)
             A boolean array indicating which of the given positions lie within the polygon sector.
-            `True` if the grid point is inside the polygon, otherwise `False`.
+            ``True`` if the grid point is inside the polygon, otherwise ``False``.
 
         Examples
         --------
@@ -1570,7 +1589,7 @@ class ConvexSector(SingleSector):
     Class for defining a convex hull sector.
 
     This class defines a convex hull sector for 2D grids. The sector is created using a list of edge
-    coordinates :attr:`edges`, which represent the vertices of a polygon. The convex hull is the
+    coordinates :attr:`edges` which represent the vertices of a polygon. The convex hull is the
     smallest convex shape that contains all the given vertices.
     """
 
