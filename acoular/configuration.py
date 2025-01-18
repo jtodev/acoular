@@ -1,7 +1,8 @@
 # ------------------------------------------------------------------------------
 # Copyright (c) Acoular Development Team.
 # ------------------------------------------------------------------------------
-"""Implements global configuration of Acoular.
+"""
+Implements global configuration of Acoular.
 
 .. autosummary::
     :toctree: generated/
@@ -18,10 +19,10 @@ from warnings import warn
 # WARNING: DO NOT ADD ANY IMPORTS HERE THAT MIGHT IMPORT NUMPY
 
 # When numpy is using OpenBLAS then it runs with OPENBLAS_NUM_THREADS which may lead to
-# overcommittment when called from within numba jitted function that run on
-# NUMBA_NUM_THREADS. If overcommitted, things get extremely! slow. Therefore we make an
-# attempt to avoid this situation. The main problem is that OPENBLAS_NUM_THREADS is
-# only respected once numpy starts. Later on, it cannot be changed.
+# overcommittment when called from within numba jitted function that run on NUMBA_NUM_THREADS. If
+# overcommitted, things get extremely! slow. Therefore we make an attempt to avoid this situation.
+# The main problem is that OPENBLAS_NUM_THREADS is only respected once numpy starts. Later on, it
+# cannot be changed.
 
 # we check if numpy already loaded
 if 'numpy' in sys.modules:
@@ -60,22 +61,20 @@ from traits.api import Bool, Enum, HasStrictTraits, File, Property, cached_prope
 
 
 class Config(HasStrictTraits):
-    """Implements the global configuration of the Acoular package.
+    """
+    Implements the global configuration of the Acoular package.
 
-    An instance of this class can be accessed for adjustment of the following
-    properties.
-    General caching behaviour can be controlled by :attr:`global_caching`.
-    The package used to read and write .h5 files can be specified
-    by :attr:`h5library`.
+    An instance of this class can be accessed for adjustment of the following properties. General
+    caching behaviour can be controlled by :attr:`global_caching`. The package used to read and
+    write .h5 files can be specified by :attr:`h5library`.
 
-    Example:
+    Examples
     --------
         For using Acoular with h5py package and overwrite existing cache:
 
         >>> import acoular
         >>> acoular.config.h5library = 'h5py'
         >>> acoular.config.global_caching = 'overwrite'
-
     """
 
     def __init__(self):
@@ -220,6 +219,7 @@ config = Config()
 This instance implements the global configuration of the Acoular package.
 
 General caching behaviour can be controlled by the :attr:`global_caching` attribute:
+
 * 'individual': Acoular classes handle caching behavior individually.
 * 'all': Acoular classes cache everything and read from cache if possible.
 * 'none': Acoular classes do not cache results. Cachefiles are not created.
@@ -228,14 +228,15 @@ General caching behaviour can be controlled by the :attr:`global_caching` attrib
 
 The package used to read and write .h5 files can be specified
 by :attr:`h5library`:
+
 * 'PyTables': Use 'tables' (or 'pytables', depending on python distribution).
 * 'H5py': Use 'h5py'.
 
-Some Acoular classes support GUI elements for usage with tools from the TraitsUI package.
-If desired, this package has to be installed manually, as it is not a prerequisite for
-installing Acoular.
-To enable the functionality, the flag attribute :attr:`use_traitsui` has to be set to True (default:
-False). Note: this is independent from the GUI tools implemented in the spectAcoular package.
+Some Acoular classes support GUI elements for usage with tools from the TraitsUI package. If
+desired, this package has to be installed manually, as it is not a prerequisite for installing
+Acoular. To enable the functionality, the flag attribute :attr:`use_traitsui` has to be set to True
+(default: False). Note: this is independent from the GUI tools implemented in the spectAcoular
+package.
 
 
 Example:

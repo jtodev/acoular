@@ -125,38 +125,40 @@ BEAMFORMER_BASE_DIGEST_DEPENDENCIES = ['freq_data.digest', 'r_diag', 'r_diag_nor
 
 
 class SteeringVector(HasStrictTraits):
-    """Basic class for implementing steering vectors with monopole source transfer models.
+    """
+    Basic class for implementing steering vectors with monopole source transfer models.
 
-    Handles four different steering vector formulations. See :cite:`Sarradj2012` for details.
+    The steering vector represents the response of the array at each grid point and is commonly used
+    in beamforming and other array processing techniques. This class handles four different steering
+    vector formulations: 'true level', 'true location', 'classic', and 'inverse'.
+    See :cite:`Sarradj2012` for details.
     """
 
-    #: :class:`~acoular.grids.Grid`-derived object that provides the grid locations.
+    #: A :class:`~acoular.grids.Grid`-derived object that provides the grid locations.
     grid = Instance(Grid, desc='beamforming grid')
 
-    #: :class:`~acoular.microphones.MicGeom` object that provides the microphone locations.
+    #: A :class:`~acoular.microphones.MicGeom` object that provides the microphone locations.
     mics = Instance(MicGeom, desc='microphone geometry')
 
     #: Type of steering vectors, see also :cite:`Sarradj2012`. Defaults to 'true level'.
     steer_type = Enum('true level', 'true location', 'classic', 'inverse', desc='type of steering vectors used')
 
-    #: :class:`~acoular.environments.Environment` or derived object,
-    #: which provides information about the sound propagation in the medium.
-    #: Defaults to standard :class:`~acoular.environments.Environment` object.
+    #: An :class:`~acoular.environments.Environment` object or derived object, which provides
+    #: information about the sound propagation in the medium. Default is
+    #: :class:`~acoular.environments.Environment` object.
     env = Instance(Environment(), Environment)
 
-    # Sound travel distances from microphone array center to grid
-    # points or reference position (readonly). Feature may change.
+    #: Sound travel distances from microphone array center to grid points or reference position
+    #: (read-only). Feature may change.
     r0 = Property(desc='array center to grid distances')
 
-    # Sound travel distances from array microphones to grid
-    # points (readonly). Feature may change.
+    #: Sound travel distances from array microphones to grid points (read-only). Feature may change.
     rm = Property(desc='all array mics to grid distances')
 
     # mirror trait for ref
     _ref = Any(array([0.0, 0.0, 0.0]), desc='reference position or distance')
 
-    #: Reference position or distance at which to evaluate the sound pressure
-    #: of a grid point.
+    #: Reference position or distance at which to evaluate the sound pressure of a grid point.
     #: If set to a scalar, this is used as reference distance to the grid points.
     #: If set to a vector, this is interpreted as x,y,z coordinates of the reference position.
     #: Defaults to [0.,0.,0.].
@@ -196,10 +198,11 @@ class SteeringVector(HasStrictTraits):
     def _get_ref(self):
         return self._ref
 
-    # internal identifier
+    #: A unique identifier for the steering vector, based on its properties. (read-only)
     digest = Property(depends_on=['steer_type', 'env.digest', 'grid.digest', 'mics.digest', '_ref'])
 
-    # internal identifier, use for inverse methods, excluding steering vector type
+    #: A unique identifier for the steering vector, used for inverse methods.
+    #: (Excluding steering vector type.) (read-only)
     inv_digest = Property(depends_on=['env.digest', 'grid.digest', 'mics.digest', '_ref'])
 
     @property_depends_on(['grid.digest', 'env.digest', '_ref'])
@@ -223,22 +226,31 @@ class SteeringVector(HasStrictTraits):
         return digest(self)
 
     def transfer(self, f, ind=None):
-        """Calculates the transfer matrix for one frequency.
+        """
+        Calculate the transfer matrix for one frequency.
 
         Parameters
         ----------
-        f   : float
-            Frequency for which to calculate the transfer matrix
-        ind : (optional) array of ints
-            If set, only the transfer function of the gridpoints addressed by
-            the given indices will be calculated. Useful for algorithms like CLEAN-SC,
-            where not the full transfer matrix is needed
+        f : float
+            The frequency at which to calculate the transfer matrix.
+
+        ind : array-like, optional
+            An array of indices specifying which grid points to compute the transfer function for.
+            If not provided, the transfer function for all grid points will be calculated. Useful
+            for algorithms like CLEAN-SC, where not the full transfer matrix is needed.
 
         Returns
         -------
-        array of complex128
-            array of shape (ngridpts, nmics) containing the transfer matrix for the given frequency
+        ndarray of complex128
+            A 2D array of shape ``(n, m)`` for ``n`` grid points and ``m`` microphones, containing
+            the transfer matrix for the given frequency. Each entry in the matrix represents the
+            transfer function from a microphone to a grid point.
 
+        Notes
+        -----
+        The transfer matrix is computed using the :meth:`~fastFuncs.calcTransfer` function, which
+        uses the sound travel distances and the propagation speed in the medium (as given by
+        :attr:`~environments.Environment.c` in :attr:`env`).
         """
         # if self.cached:
         #    warn('Caching of transfer function is not yet supported!', Warning)
@@ -253,24 +265,28 @@ class SteeringVector(HasStrictTraits):
         return trans
 
     def steer_vector(self, f, ind=None):
-        """Calculates the steering vectors based on the transfer function.
+        """
+        Calculates the steering vectors based on the transfer function for a given frequency.
 
+        This method uses the transfer function from microphones to grid points and applies the
+        selected steering vector formulation to compute the steering vectors.
         See also :cite:`Sarradj2012`.
 
         Parameters
         ----------
-        f   : float
-            Frequency for which to calculate the transfer matrix
-        ind : (optional) array of ints
-            If set, only the steering vectors of the gridpoints addressed by
-            the given indices will be calculated. Useful for algorithms like CLEAN-SC,
-            where not the full transfer matrix is needed
+        f : float
+            The frequency at which to calculate the steering vectors.
+        ind : array-like, optional
+            An array of indices specifying which grid points to compute the steering vectors for.
+            If not provided, the steering vectors for all grid points will be calculated. Useful for
+            algorithms like CLEAN-SC, where not all steering vectors are needed.
 
         Returns
         -------
-        array of complex128
-            array of shape (ngridpts, nmics) containing the steering vectors for the given frequency
-
+        ndarray of complex128
+            A 2D array of complex steering vectors for the given frequency, shape `(n, m)` for `n`
+            grid points and `m` microphones, where each entry represents the steering vector from
+            each microphone to a specific grid point.
         """
         func = self._steer_funcs_freq[self.steer_type]
         return func(self.transfer(f, ind))
@@ -284,6 +300,22 @@ class LazyBfResult:
     # implemented as an extra class instead of as a method of BeamformerBase to
     # properly control the BeamformerBase.result attribute. Might be migrated to
     # be a method of BeamformerBase in the future.
+
+    """
+    A class that lazily computes beamforming results only when needed.
+
+    This class is designed to handle the results of a beamforming computation in a lazy manner,
+    meaning that the actual computation is deferred until the results are explicitly accessed;
+    provides an 'intelligent' [] operator. It allows for efficient memory usage and faster
+    initialization by only performing calculations for the specific indices that are requested.
+
+    Might be migrated to be a method of BeamformerBase in the future.
+
+    Attributes
+    ----------
+    bf : object
+        The beamforming object.
+    """
 
     def __init__(self, bf):
         self.bf = bf
@@ -307,22 +339,24 @@ class LazyBfResult:
 class BeamformerBase(HasStrictTraits):
     """Beamforming using the basic delay-and-sum algorithm in the frequency domain."""
 
-    # Instance of :class:`~acoular.fbeamform.SteeringVector` or its derived classes
-    # that contains information about the steering vector. This is a private trait.
-    # Do not set this directly, use `steer` trait instead.
+    #: An instance of the :class:`~acoular.fbeamform.SteeringVector` or its derived classes. This
+    #: object provides the necessary steering vector data for beamforming computations. Direct use
+    #: of this attribute is not recommended. Use the ``steer`` trait instead.
     steer = Instance(SteeringVector, args=())
 
-    #: :class:`~acoular.spectra.PowerSpectra` object that provides the
-    #: cross spectral matrix and eigenvalues
+    #: An instance of :class:`~acoular.spectra.PowerSpectra`, which contains the cross-spectral
+    #: matrix and the associated eigenvalues, necessary for the beamforming process.
     freq_data = Instance(PowerSpectra, desc='freq data object')
 
-    #: Boolean flag, if 'True' (default), the main diagonal is removed before beamforming.
+    #: A flag that determines if the main diagonal of the cross-spectral matrix is removed before
+    #: beamforming. Default is ``True``. Removing the diagonal is typically done to reduce noise but
+    #: may result in some loss of signal energy.
     r_diag = Bool(True, desc='removal of diagonal')
 
-    #: If r_diag==True: if r_diag_norm==0.0, the standard
-    #: normalization = num_mics/(num_mics-1) is used.
-    #: If r_diag_norm !=0.0, the user input is used instead.
-    #: If r_diag==False, the normalization is 1.0 either way.
+    #: A normalization factor to handle the signal energy loss when the main diagonal is removed
+    #: (if ``r_diag`` is ``True``). If set to 0.0, the standard normalization factor is used:
+    #: ``num_mics / (num_mics - 1)``. The user can provide a custom normalization value. If
+    #: ``r_diag`` is ``False``, this factor has no effect.
     r_diag_norm = Float(
         0.0,
         desc='If diagonal of the csm is removed, some signal energy is lost.'
@@ -330,22 +364,24 @@ class BeamformerBase(HasStrictTraits):
         'Internally, the default is: num_mics / (num_mics - 1).',
     )
 
-    #: Floating point precision of property result. Corresponding to numpy dtypes. Default = 64 Bit.
+    #: The precision (bit-depth) of the beamforming result. This corresponds to NumPy data types and
+    #: can be either 32-bit or 64-bit floating point precision. Default is 64-bit precision.
     precision = Enum('float64', 'float32', desc='precision (32/64 Bit) of result, corresponding to numpy dtypes')
 
-    #: Boolean flag, if 'True' (default), the result is cached in h5 files.
+    #: A flag indicating whether the beamforming result should be cached in HDF5 files.
+    #: Default is ``True``.
     cached = Bool(True, desc='cached flag')
 
-    # hdf5 cache file
+    #: The HDF5 cache file used for storing the beamforming results if :attr:`cached` is set to
+    #: ``True``.
     h5f = Instance(H5CacheFileBase, transient=True)
 
-    #: The beamforming result as squared sound pressure values
-    #: at all grid point locations (readonly).
-    #: Returns a (number of frequencies, number of gridpoints) array-like
-    #: of floats. Values can only be accessed via the index operator [].
+    #: A property representing the beamforming result as squared sound pressure values at all grid
+    #: point locations. It returns a 2D array of shape ``(n, m)`` for ``n`` frequencies and ``m``
+    #: grid points that contains the beamforming results at each frequency for each grid point.
     result = Property(desc='beamforming result')
 
-    # internal identifier
+    #: A unique identifier for the beamformer, based on its properties. (read-only)
     digest = Property(depends_on=BEAMFORMER_BASE_DIGEST_DEPENDENCIES)
 
     # private traits
@@ -359,15 +395,14 @@ class BeamformerBase(HasStrictTraits):
         return digest(self)
 
     def _get_filecache(self):
-        """Function collects cached results from file depending on
-        global/local caching behaviour. Returns (None, None) if no cachefile/data
-        exist and global caching mode is 'readonly'.
-        """
+        # Function collects cached results from file depending on global/local caching behaviour.
+        # Returns (None, None) if no cachefile/data exist and global caching mode is 'readonly'.
+
         #        print("get cachefile:", self.freq_data.basename)
         H5cache.get_cache_file(self, self.freq_data.basename)
         if not self.h5f:
             #            print("no cachefile:", self.freq_data.basename)
-            return (None, None, None)  # only happens in case of global caching readonly
+            return (None, None, None)  # only happens in case of global caching read-only
 
         nodename = self.__class__.__name__ + self.digest
         #        print("collect filecache for nodename:",nodename)
@@ -416,9 +451,9 @@ class BeamformerBase(HasStrictTraits):
 
     @property_depends_on(['digest'])
     def _get_result(self):
-        """Implements the :attr:`result` getter routine.
-        The beamforming result is either loaded or calculated.
-        """
+        # Implements the :attr:`result` getter routine.
+        # The beamforming result is either loaded or calculated.
+
         # store locally for performance
         self._f = self.freq_data.fftfreq()
         self._numfreq = self._f.shape[0]
@@ -448,8 +483,27 @@ class BeamformerBase(HasStrictTraits):
         return LazyBfResult(self)
 
     def sig_loss_norm(self):
-        """If the diagonal of the CSM is removed one has to handle the loss
-        of signal energy --> Done via a normalization factor.
+        """
+        Compute the normalization factor to compensate for signal energy loss.
+
+        When the diagonal of the cross-spectral matrix (CSM) is removed, the loss of signal energy
+        must be accounted for to ensure accurate analysis. This method calculates the normalization
+        factor based on the current configuration:
+
+        - If ``r_diag = False`` (full CSM is used), no normalization is required, and 
+          the factor is set to 1.0.
+
+        - If ``r_diag = True`` and ``r_diag_norm = 0.0``, the standard normalization factor is
+          calculated as the ratio of the number of microphones to the number of remaining entries
+          (adjusted for the diagonal removal).
+        
+        - If ``r_diag = True`` and ``r_diag_norm`` is non-zero, the user-specified normalization
+          factor is applied.
+        
+        Returns
+        -------
+        float
+            The computed normalization factor to adjust for signal energy loss.
         """
         if not self.r_diag:  # Full CSM --> no normalization needed
             normfactor = 1.0
@@ -461,16 +515,12 @@ class BeamformerBase(HasStrictTraits):
         return normfactor
 
     def _beamformer_params(self):
-        """Manages the parameters for calling of the core beamformer functionality.
-        This is a workaround to allow faster calculation and may change in the
-        future.
+        # Manages the parameters for calling of the core beamformer functionality.
+        # This is a workaround to allow faster calculation and may change in the future.
+        # Return:
+        # - String containing the steering vector type
+        # - Function for frequency-dependent steering vector calculation
 
-        Returns
-        -------
-            - String containing the steering vector type
-            - Function for frequency-dependent steering vector calculation
-
-        """
         if type(self.steer) is SteeringVector:  # for simple steering vector, use faster method
             param_type = self.steer.steer_type
 
@@ -482,23 +532,21 @@ class BeamformerBase(HasStrictTraits):
         return param_type, param_steer_func
 
     def _calc(self, ind):
-        """Calculates the result for the frequencies defined by :attr:`freq_data`.
+        # Calculates the result for the frequencies defined by :attr:`freq_data`.
+        #
+        # This is an internal helper function that is automatically called when accessing the
+        # beamformer's :attr:`result` or calling its :meth:`synthetic` method.
+        #
+        # Parameters
+        # ----------
+        # ind : array of int
+        #     This array contains all frequency indices for which (re)calculation is
+        #     to be performed
+        #
+        # Returns
+        # -------
+        # This method only returns values through :attr:`_ac` and :attr:`_fr`
 
-        This is an internal helper function that is automatically called when
-        accessing the beamformer's :attr:`result` or calling
-        its :meth:`synthetic` method.
-
-        Parameters
-        ----------
-        ind : array of int
-            This array contains all frequency indices for which (re)calculation is
-            to be performed
-
-        Returns
-        -------
-        This method only returns values through :attr:`_ac` and :attr:`_fr`
-
-        """
         f = self._f
         normfactor = self.sig_loss_norm()
         param_steer_type, steer_vector = self._beamformer_params()
@@ -519,15 +567,21 @@ class BeamformerBase(HasStrictTraits):
             self._fr[i] = 1
 
     def synthetic(self, f, num=0):
-        """Evaluates the beamforming result for an arbitrary frequency band.
+        """
+        Evaluate beamforming results for a specific frequency or frequency band.
+
+        This method retrieves the beamforming result at a specified frequency or aggregates the
+        result over a fractional octave band. It supports both single-frequency line queries and
+        band-based queries (e.g., octave, third-octave).
 
         Parameters
         ----------
-        f: float
-            Band center frequency.
-        num : integer
-            Controls the width of the frequency bands considered; defaults to
-            0 (single frequency line).
+        f : float
+            The center frequency for which to calculate the synthesized result. For band-based
+            calculations, this defines the center of the band.
+        num : int or list, optional
+            Determines the width of the frequency band considered. Default is ``0``, which
+            corresponds to a single frequency line.
 
             ===  =====================
             num  frequency band width
@@ -538,16 +592,23 @@ class BeamformerBase(HasStrictTraits):
             n    1/n-octave band
             ===  =====================
 
+            If ``num`` is a list, it should contain two values defining the start and end
+            frequencies of the band directly (e.g., ``[f1, f2]``).
+
         Returns
         -------
-        array of floats
-            The synthesized frequency band values of the beamforming result at
-            each grid point .
-            Note that the frequency resolution and therefore the bandwidth
-            represented by a single frequency line depends on
-            the :attr:`sampling frequency<acoular.base.SamplesGenerator.sample_freq>` and
-            used :attr:`FFT block size<acoular.spectra.PowerSpectra.block_size>`.
-
+        ndarray
+            The synthesized frequency band values of the beamforming result at each grid point.
+            Note that the frequency resolution and therefore the bandwidth represented by a single
+            frequency line depends on the
+            :attr:`sampling frequency<acoular.base.SamplesGenerator.sample_freq>` and the used
+            :attr:`FFT block size<acoular.spectra.PowerSpectra.block_size>`.
+            
+            - For most beamformers: The result is reshaped to match the grid shape.
+            - For adaptive beamformers using grids (e.g., :class:`BeamformerAdaptiveGrid`): The
+              result is returned as a flat array.
+            - For special beamformers like :class:`BeamformerSODIX`: The result is reshaped into 
+              a 2D array with dimensions ``(n, m)`` for ``n`` grid points and ``m`` microphones.
         """
         res = self.result  # trigger calculation
         freq = self.freq_data.fftfreq()
@@ -602,29 +663,36 @@ class BeamformerBase(HasStrictTraits):
         return h.reshape(self.steer.grid.shape)
 
     def integrate(self, sector, frange=None, num=0):
-        """Integrates result map over a given sector.
+        """
+        Integrate the beamforming result over a specific grid sector and frequency range.
+
+        This method calculates the integrated beamforming result over a user-defined region of the
+        grid (sector) and frequency range. The integration can be performed for specific frequencies
+        or fractional octave bands.
 
         Parameters
         ----------
-        sector: array of floats or :class:`~acoular.grids.Sector`
-            either an array, tuple or list with arguments for the 'indices'
-            method of a :class:`~acoular.grids.Grid`-derived class
-            (e.g. :meth:`RectGrid.indices<acoular.grids.RectGrid.indices>`
-            or :meth:`RectGrid3D.indices<acoular.grids.RectGrid3D.indices>`).
-            Possible sectors would be *array([xmin, ymin, xmax, ymax])*
-            or *array([x, y, radius])* or an instance of a
-            :class:`~acoular.grids.Sector`-derived class
+        sector: Sector or tupel
+            Defines the region of the grid over which to integrate. This can be:
+                - A :class:`~acoular.grids.Sector` object that specifies the desired subdomain of
+                  the grid. Possible sectors would be ``array([xmin, ymin, xmax, ymax])`` or
+                  ``array([x, y, radius])`` or an instance of a
+                  :class:`~acoular.grids.Sector`-derived class.
+                - A tuple of indices specifying the subdomain. The items should match the arguments
+                  for the ``indices`` method of a :class:`~acoular.grids.Grid`-derived class (e.g.
+                  :meth:`RectGrid.indices<acoular.grids.RectGrid.indices>` or
+                  :meth:`RectGrid3D.indices<acoular.grids.RectGrid3D.indices>`).
 
-        frange: tuple or None
-            a tuple of (fmin,fmax) frequencies to include in the result if *num*==0,
-            or band center frequency/frequencies for which to return the results
-            if *num*>0; if None, then the frequency range is determined from
-            the settings of the :attr:`PowerSpectra.ind_low` and
-            :attr:`PowerSpectra.ind_high` of :attr:`freq_data`
+        frange: tuple, optional
+            Defines the frequency range for integration. It can be:
+                - ``None`` (default): Integrates over the frequencies determined by the
+                  :attr:`PowerSpectra.ind_low<acoular.spectra.PowerSpectra.ind_low>` and
+                  :attr:`PowerSpectra.ind_high<acoular.spectra.PowerSpectra.ind_high>` of
+                  :attr:`freq_data`.
+                - A tuple ``(fmin, fmax)``: Integrates over the specified range of frequencies.
 
-        num : integer
-            Controls the width of the frequency bands considered; defaults to
-            0 (single frequency line). Only considered if *frange* is not None.
+        num : int, optional
+            Controls the width of the frequency bands considered. Default is ``0``.
 
             ===  =====================
             num  frequency band width
@@ -634,16 +702,30 @@ class BeamformerBase(HasStrictTraits):
             3    third-octave band
             n    1/n-octave band
             ===  =====================
-
+            
+            Only considered if ``frange`` is not ``None``.
 
         Returns
         -------
-        res or (f, res): array of floats or tuple(array of floats, array of floats)
-            If *frange*==None or *num*>0, the spectrum (all calculated frequency bands)
-            for the integrated sector is returned as *res*. The dimension of this array is the
-            number of frequencies given by :attr:`freq_data` and entries not computed are zero.
-            If *frange*!=None and *num*==0, then (f, res) is returned where *f* are the (band)
-            frequencies and the dimension of both arrays is determined from *frange*
+        ndarray or tuple
+            The output depends on the ``frange`` and ``num`` parameters:
+                - If ``frange`` is ``None`` and ``num == 0``: Returns an array of integrated values
+                  for all frequencies. The dimension of this array is the number of frequencies
+                  given by :attr:`freq_data` and entries not computed are zero.
+                - If ``frange`` is a tuple and ``num == 0``: Returns a tuple
+                  ``(frequencies, integrated_values)`` where ``frequencies`` are the resolved
+                  frequencies in the range and ``integrated_values`` are the corresponding
+                  integrated results.
+                - If ``num > 0``: Returns an array of integrated values for the center frequencies 
+                  defined by ``frange``.
+        
+        Raises
+        ------
+        NotImplementedError
+            If the provided ``sector`` is not a :class:`~acoular.grids.Sector` object and the grid
+            does not have an ``indices`` method.
+        TypeError
+            If ``num == 0`` and ``frange`` is not a tuple of length ``2``.
         """
         if isinstance(sector, Sector):
             ind = self.steer.grid.subdomain(sector)
@@ -697,25 +779,31 @@ class BeamformerBase(HasStrictTraits):
 
 
 class BeamformerFunctional(BeamformerBase):
-    """Functional beamforming algorithm.
+    """
+    Functional Beamforming Algorithm.
 
-    See :cite:`Dougherty2014` for details.
+    This class implements the Functional Beamforming algorithm, a generalized method that extends
+    Classic Beamforming by introducing a functional exponent `gamma`. Functional Beamforming
+    enhances spatial resolution and reduces sidelobe levels in beamforming results.
+    For details, see :cite:`Dougherty2014`.
     """
 
-    #: Functional exponent, defaults to 1 (= Classic Beamforming).
+    #: Functional exponent. A value of ``1.0`` corresponds to Classic Beamforming. Higher values
+    #: improve spatial resolution but may reduce robustness to noise. Default is ``1.0``.
     gamma = Float(1, desc='functional exponent')
 
-    #: Functional Beamforming is only well defined for full CSM
+    #: Indicates whether the diagonal of the CSM should be removed. Default is ``False``, as
+    #: Functional Beamforming is only well-defined for the full CSM.
     r_diag = Enum(False, desc='False, as Functional Beamformer is only well defined for the full CSM')
 
-    #: Normalization factor in case of CSM diagonal removal. Defaults to 1.0 since Functional
-    #: Beamforming is only well defined for full CSM.
+    #: Normalization factor used in case of diagonal removal from the CSM. Default is ``1.0``, as no
+    #: normalization is necessary for the full CSM.
     r_diag_norm = Enum(
         1.0,
         desc='No normalization needed. Functional Beamforming is only well defined for full CSM.',
     )
 
-    # internal identifier
+    #: A unique identifier for the beamformer, based on its properties. (read-only)
     digest = Property(depends_on=BEAMFORMER_BASE_DIGEST_DEPENDENCIES + ['gamma'])
 
     @cached_property
@@ -723,23 +811,22 @@ class BeamformerFunctional(BeamformerBase):
         return digest(self)
 
     def _calc(self, ind):
-        """Calculates the result for the frequencies defined by :attr:`freq_data`.
+        # Calculate the result for the frequencies defined by :attr:`freq_data`.
+        #
+        # This is an internal helper function that is automatically called when
+        # accessing the beamformer's :attr:`result` or calling
+        # its :meth:`synthetic` method.
+        #
+        # Parameters
+        # ----------
+        # ind : array of int
+        #     This array contains all frequency indices for which (re)calculation is
+        #     to be performed
+        #
+        # Returns
+        # -------
+        # This method only returns values through :attr:`_ac` and :attr:`_fr`
 
-        This is an internal helper function that is automatically called when
-        accessing the beamformer's :attr:`result` or calling
-        its :meth:`synthetic` method.
-
-        Parameters
-        ----------
-        ind : array of int
-            This array contains all frequency indices for which (re)calculation is
-            to be performed
-
-        Returns
-        -------
-        This method only returns values through :attr:`_ac` and :attr:`_fr`
-
-        """
         f = self._f
         normfactor = self.sig_loss_norm()
         param_steer_type, steer_vector = self._beamformer_params()
@@ -788,40 +875,42 @@ class BeamformerFunctional(BeamformerBase):
 
 
 class BeamformerCapon(BeamformerBase):
-    """Beamforming using the Capon (Mininimum Variance) algorithm.
+    """
+    Beamforming using the Capon (Minimum Variance) algorithm.
 
-    See :cite:`Capon1969` for details.
+    The Capon beamforming method minimizes output power while preserving the signal from the desired
+    direction. This approach reduces interference and noise from other directions, offering improved
+    spatial resolution compared to Classic Beamforming. For details, see :cite:`Capon1969`.
     """
 
-    # Boolean flag, if 'True', the main diagonal is removed before beamforming;
-    # for Capon beamforming r_diag is set to 'False'.
+    #: Indicates whether the diagonal of the CSM should be removed. Default is ``False``, as
+    #: Functional Beamforming is only well-defined for the full CSM.
     r_diag = Enum(False, desc='removal of diagonal')
 
-    #: Normalization factor in case of CSM diagonal removal. Defaults to 1.0 since Beamformer Capon
-    #: is only well defined for full CSM.
+    #: Normalization factor used in case of diagonal removal from the CSM. Default is ``1.0``, as no
+    #: normalization is necessary for the full CSM.
     r_diag_norm = Enum(
         1.0,
         desc='No normalization. BeamformerCapon is only well defined for full CSM.',
     )
 
     def _calc(self, ind):
-        """Calculates the result for the frequencies defined by :attr:`freq_data`.
+        # Calculate the result for the frequencies defined by :attr:`freq_data`.
+        #
+        # This is an internal helper function that is automatically called when
+        # accessing the beamformer's :attr:`result` or calling
+        # its :meth:`synthetic` method.
+        #
+        # Parameters
+        # ----------
+        # ind : array of int
+        #     This array contains all frequency indices for which (re)calculation is
+        #     to be performed
+        #
+        # Returns
+        # -------
+        # This method only returns values through :attr:`_ac` and :attr:`_fr`
 
-        This is an internal helper function that is automatically called when
-        accessing the beamformer's :attr:`result` or calling
-        its :meth:`synthetic` method.
-
-        Parameters
-        ----------
-        ind : array of int
-            This array contains all frequency indices for which (re)calculation is
-            to be performed
-
-        Returns
-        -------
-        This method only returns values through :attr:`_ac` and :attr:`_fr`
-
-        """
         f = self._f
         nMics = self.freq_data.num_channels
         normfactor = self.sig_loss_norm() * nMics**2
@@ -834,20 +923,29 @@ class BeamformerCapon(BeamformerBase):
 
 
 class BeamformerEig(BeamformerBase):
-    """Beamforming using eigenvalue and eigenvector techniques.
+    """
+    Beamforming using eigenvalue and eigenvector techniques.
 
-    See :cite:`Sarradj2005` for details.
+    The eigenvalue beamforming method isolates specific components of the CSM based on its
+    eigenvalue decomposition. This allows focusing on particular acoustic modes, such as dominant or
+    smallest eigenvalues, depending on the application. For details, see :cite:`Sarradj2005`.
     """
 
-    #: Number of component to calculate:
-    #: 0 (smallest) ... :attr:`~acoular.base.SamplesGenerator.num_channels`-1;
-    #: defaults to -1, i.e. num_channels-1
+    #: Index of the eigenvalue to be used in the beamforming calculation:
+    #:
+    #: - ``0``: Smallest eigenvalue
+    #:
+    #: - ``(`` :attr:`~acoular.base.Generator.num_channels` ``- 1 )``:
+    #:   Largest eigenvalue (default if ``n=-1``)
+    #:
+    #: Default is ``-1``, corresponding to the largest eigenvalue.
     n = Int(-1, desc='No. of eigenvalue')
 
-    # Actual component to calculate, internal, readonly.
+    #: The effective eigenvalue index, automatically adjusted to ensure it remains within valid
+    #: bounds. (read-only)
     na = Property(desc='No. of eigenvalue')
 
-    # internal identifier
+    #: A unique identifier for the beamformer, based on its properties. (read-only)
     digest = Property(depends_on=BEAMFORMER_BASE_DIGEST_DEPENDENCIES + ['n'])
 
     @cached_property
@@ -863,23 +961,22 @@ class BeamformerEig(BeamformerBase):
         return min(nm - 1, na)
 
     def _calc(self, ind):
-        """Calculates the result for the frequencies defined by :attr:`freq_data`.
+        # Calculate the result for the frequencies defined by :attr:`freq_data`.
+        #
+        # This is an internal helper function that is automatically called when
+        # accessing the beamformer's :attr:`result` or calling
+        # its :meth:`synthetic` method.
+        #
+        # Parameters
+        # ----------
+        # ind : array of int
+        #     This array contains all frequency indices for which (re)calculation is
+        #     to be performed
+        #
+        # Returns
+        # -------
+        # This method only returns values through :attr:`_ac` and :attr:`_fr`
 
-        This is an internal helper function that is automatically called when
-        accessing the beamformer's :attr:`result` or calling
-        its :meth:`synthetic` method.
-
-        Parameters
-        ----------
-        ind : array of int
-            This array contains all frequency indices for which (re)calculation is
-            to be performed
-
-        Returns
-        -------
-        This method only returns values through :attr:`_ac` and :attr:`_fr`
-
-        """
         f = self._f
         na = int(self.na)  # eigenvalue taken into account
         normfactor = self.sig_loss_norm()
@@ -902,44 +999,47 @@ class BeamformerEig(BeamformerBase):
 
 
 class BeamformerMusic(BeamformerEig):
-    """Beamforming using the MUSIC algorithm.
+    """
+    Beamforming using the MUSIC (Multiple Signal Classification) algorithm.
 
-    See :cite:`Schmidt1986` for details.
+    The MUSIC algorithm leverages the eigenvalue decomposition of the CSM to identify and localize
+    multiple acoustic sources with high resolution. It separates the signal subspace (associated
+    with dominant eigenvalues) from the noise subspace (associated with smaller eigenvalues) to
+    improve source discrimination. For details, see :cite:`Schmidt1986`.
     """
 
-    # Boolean flag, if 'True', the main diagonal is removed before beamforming;
-    # for MUSIC beamforming r_diag is set to 'False'.
+    # Flag for diagonal removal in the CSM., if ``True``, the main diagonal is removed before
+    # beamforming. For MUSIC beamforming it is set to ``False``.
     r_diag = Enum(False, desc='removal of diagonal')
 
-    #: Normalization factor in case of CSM diagonal removal. Defaults to 1.0 since BeamformerMusic
-    #: is only well defined for full CSM.
+    #: Normalization factor in case of CSM diagonal removal. Default is ``1.0`` since
+    #: BeamformerMusic is only well defined for full CSM.
     r_diag_norm = Enum(
         1.0,
         desc='No normalization. BeamformerMusic is only well defined for full CSM.',
     )
 
-    # assumed number of sources, should be set to a value not too small
-    # defaults to 1
+    #: Assumed number of acoustic sources. This determines the size of the signal subspace used
+    #: in the MUSIC algorithm. Defaults to ``1``.
     n = Int(1, desc='assumed number of sources')
 
     def _calc(self, ind):
-        """Calculates the result for the frequencies defined by :attr:`freq_data`.
+        # Calculate the result for the frequencies defined by :attr:`freq_data`.
+        #
+        # This is an internal helper function that is automatically called when
+        # accessing the beamformer's :attr:`result` or calling
+        # its :meth:`synthetic` method.
+        #
+        # Parameters
+        # ----------
+        # ind : array of int
+        #     This array contains all frequency indices for which (re)calculation is
+        #     to be performed
+        #
+        # Returns
+        # -------
+        # This method only returns values through :attr:`_ac` and :attr:`_fr`
 
-        This is an internal helper function that is automatically called when
-        accessing the beamformer's :attr:`result` or calling
-        its :meth:`synthetic` method.
-
-        Parameters
-        ----------
-        ind : array of int
-            This array contains all frequency indices for which (re)calculation is
-            to be performed
-
-        Returns
-        -------
-        This method only returns values through :attr:`_ac` and :attr:`_fr`
-
-        """
         f = self._f
         nMics = self.freq_data.num_channels
         n = int(self.steer.mics.num_mics - self.na)
@@ -960,52 +1060,60 @@ class BeamformerMusic(BeamformerEig):
 
 
 class PointSpreadFunction(HasStrictTraits):
-    """The point spread function.
+    """
+    The point spread function (PSF) calculation for microphone array processing.
 
-    This class provides tools to calculate the PSF depending on the used
-    microphone geometry, focus grid, flow environment, etc.
-    The PSF is needed by several deconvolution algorithms to correct
-    the aberrations when using simple delay-and-sum beamforming.
+    The PSF is an essential tool in array signal processing, used to account for the spatial and
+    temporal response of a microphone array. It is critical for several deconvolution algorithms,
+    such as :class:`DAMAS<BeamformerDamas>` and :class:`CLEAN<BeamformerClean>`, to correct the
+    aberrations introduced by delay-and-sum beamforming. The PSF accounts for microphone geometry,
+    focus grid, flow conditions, and other environmental factors.
     """
 
-    # Instance of :class:`~acoular.fbeamform.SteeringVector` or its derived classes
-    # that contains information about the steering vector. This is a private trait.
-    # Do not set this directly, use `steer` trait instead.
+    #: An instance of the :class:`~acoular.fbeamform.SteeringVector` class or its derived classes,
+    #: containing information about the steering vector. This attribute is private and should be
+    #: accessed or modified through the ``steer``` trait.
     steer = Instance(SteeringVector, args=())
 
-    #: Indices of grid points to calculate the PSF for.
+    #: Indices of grid points for which the PSF is to be calculated.
+    #: If empty, defaults to all grid points
+    #: ( ``numpy.arange(`` :attr:`steer.grid.size<acoular.grids.Grid.size>` ``)`` ).
     grid_indices = CArray(
         dtype=int,
         value=array([]),
         desc='indices of grid points for psf',
     )  # value=array([]), value=self.steer.grid.pos(),
 
-    #: Flag that defines how to calculate and store the point spread function
-    #: defaults to 'single'.
+    #: Flag that defines how to calculate and store the point spread function.
+    #: Default is ``'single'``.
     #:
-    #: * 'full': Calculate the full PSF (for all grid points) in one go (should be used if the PSF
-    #:           at all grid points is needed, as with :class:`DAMAS<BeamformerDamas>`)
-    #: * 'single': Calculate the PSF for the grid points defined by :attr:`grid_indices`, one by one
-    #:             (useful if not all PSFs are needed, as with :class:`CLEAN<BeamformerClean>`)
-    #: * 'block': Calculate the PSF for the grid points defined by :attr:`grid_indices`, in one go
-    #:            (useful if not all PSFs are needed, as with :class:`CLEAN<BeamformerClean>`)
-    #: * 'readonly': Do not attempt to calculate the PSF since it should already be cached (useful
-    #:               if multiple processes have to access the cache file)
+    #: - ``'full'``: Calculate the full PSF (for all grid points) in one go (should be used if the
+    #:   PSF at all grid points is needed, as with :class:`DAMAS<BeamformerDamas>`)
+    #: - ``'single'``: Calculate the PSF for the grid points defined by :attr:`grid_indices`, one by
+    #:   one (useful if not all PSFs are needed, as with :class:`CLEAN<BeamformerClean>`)
+    #: - ``'block'``: Calculate the PSF for the grid points defined by :attr:`grid_indices`, in one
+    #:   go (useful if not all PSFs are needed, as with :class:`CLEAN<BeamformerClean>`)
+    #: - ``'readonly'``: Do not attempt to calculate the PSF since it should already be cached
+    #:   (useful if multiple processes have to access the cache file)
     calcmode = Enum('single', 'block', 'full', 'readonly', desc='mode of calculation / storage')
 
-    #: Floating point precision of property psf. Corresponding to numpy dtypes. Default = 64 Bit.
+    #: Precision of the calculated PSF, corresponding to NumPy floating-point types.
+    #: Default is ``'float64'``.
     precision = Enum('float64', 'float32', desc='precision (32/64 Bit) of result, corresponding to numpy dtypes')
 
-    #: The actual point spread function.
+    #: The calculated PSF, stored as a 2D array of shape
+    #: ``(`` :attr:`steer.grid.size<acoular.grids.Grid.size>` ``,
+    #: len(`` :attr:`grid_indices` ``))``.
     psf = Property(desc='point spread function')
 
-    #: Frequency to evaluate the PSF for; defaults to 1.0.
+    #: Frequency at which to calculate the PSF. Default is ``1.0``.
     freq = Float(1.0, desc='frequency')
 
-    # hdf5 cache file
+    #: The HDF5 cache file used for storing the beamforming results. This attribute is transient and
+    #: depends on the caching configuration.
     h5f = Instance(H5CacheFileBase, transient=True)
 
-    # internal identifier
+    #: A unique identifier for the function, based on its properties. (read-only)
     digest = Property(depends_on=['steer.digest', 'precision'], cached=True)
 
     @cached_property
@@ -1013,17 +1121,16 @@ class PointSpreadFunction(HasStrictTraits):
         return digest(self)
 
     def _get_filecache(self):
-        """Function collects cached results from file depending on
-        global/local caching behaviour. Returns (None, None) if no cachefile/data
-        exist and global caching mode is 'readonly'.
-        """
+        # Function collects cached results from file depending on global/local caching behaviour.
+        # Returns (None, None) if no cachefile/data exist and global caching mode is 'readonly'.
+
         filename = 'psf' + self.digest
         nodename = (f'Hz_{self.freq:.2f}').replace('.', '_')
         #        print("get cachefile:", filename)
         H5cache.get_cache_file(self, filename)
-        if not self.h5f:  # only happens in case of global caching readonly
+        if not self.h5f:  # only happens in case of global caching (read-only)
             #            print("no cachefile:", filename)
-            return (None, None)  # only happens in case of global caching readonly
+            return (None, None)  # only happens in case of global caching (read-only)
 
         if config.global_caching == 'overwrite' and self.h5f.is_cached(nodename):
             #            print("remove existing data for nodename",nodename)
@@ -1047,9 +1154,9 @@ class PointSpreadFunction(HasStrictTraits):
         return (ac, gp)
 
     def _get_psf(self):
-        """Implements the :attr:`psf` getter routine.
-        The point spread function is either loaded or calculated.
-        """
+        # Implements the :attr:`psf` getter routine.
+        # The point spread function is either loaded or calculated.
+
         gs = self.steer.grid.size
         if not self.grid_indices.size:
             self.grid_indices = arange(gs)
@@ -1086,7 +1193,28 @@ class PointSpreadFunction(HasStrictTraits):
         return ac[:, self.grid_indices]
 
     def calc_psf(self, ac, gp):
-        """point-spread function calculation."""
+        """
+        Calculates the point spread function (PSF) and updates the provided arrays.
+
+        This method computes the PSF for the grid points specified in :attr:`grid_indices` using the
+        calculation mode defined by :attr:`calcmode`. The results are stored in the provided arrays
+        ``ac`` and ``gp``.
+
+        The method updates the `ac` array with the PSF values and marks calculated points in the
+        ``gp`` array. For modes other than ``'full'``, only the points that are missing (as
+        indicated by ``gp``) are computed.
+
+        Parameters
+        ----------
+        ac : ndarray
+            A 2D array of shape (:attr:`steer.grid.size<acoular.grids.Grid.size>`,
+            :attr:`steer.grid.size<acoular.grids.Grid.size>`) used to store the calculated PSF
+            values. Each column corresponds to a grid point, and rows contain the PSF data.
+        gp : ndarray
+            A 1D array of shape (:attr:`steer.grid.size<acoular.grids.Grid.size>`,) acting as a
+            boolean mask to indicate which grid points have already been calculated. Values of 1
+            signify that the PSF for the corresponding grid point has been computed.
+        """
         if self.calcmode != 'full':
             # calc_ind has the form [True, True, False, True], except
             # when it has only 1 entry (value True/1 would be ambiguous)
@@ -1110,18 +1238,18 @@ class PointSpreadFunction(HasStrictTraits):
                 indh += 1
 
     def _psf_call(self, ind):
-        """Manages the calling of the core psf functionality.
+        # Manage the calling of the core psf functionality.
+        #
+        # Parameters
+        # ----------
+        # ind : list of int
+        #     Indices of gridpoints which are assumed to be sources. Normalization factor for the
+        #     beamforming result (e.g. removal of diag is compensated with this.)
+        #
+        # Returns
+        # -------
+        # The psf [1, nGridPoints, len(ind)]
 
-        Parameters
-        ----------
-        ind : list of int
-            Indices of gridpoints which are assumed to be sources. Normalization factor for the
-            beamforming result (e.g. removal of diag is compensated with this.)
-
-        Returns
-        -------
-        The psf [1, nGridPoints, len(ind)]
-        """
         if type(self.steer) is SteeringVector:  # for simple steering vector, use faster method
             result = calcPointSpreadFunction(
                 self.steer.steer_type,
@@ -1140,33 +1268,47 @@ class PointSpreadFunction(HasStrictTraits):
 
 
 class BeamformerDamas(BeamformerBase):
-    """DAMAS deconvolution algorithm.
+    """
+    DAMAS (Deconvolution Approach for the Mapping of Acoustic Sources) algorithm.
 
-    See :cite:`Brooks2006` for details.
+    This class implements the DAMAS deconvolution algorithm, which improves the spatial resolution
+    of beamforming by solving a linear system that accounts for the spreading effect of the point
+    spread function (PSF). See :cite:`Brooks2006` for details on the algorithm.
     """
 
-    #: (only for backward compatibility) :class:`BeamformerBase` object
-    #: if set, provides :attr:`freq_data`, :attr:`steer`, :attr:`r_diag`
-    #: if not set, these have to be set explicitly.
+    #: (Only for backward compatibility) A :class:`BeamformerBase` object that provides the
+    #: attributes :attr:`freq_data`, :attr:`steer`, :attr:`r_diag` if set. If not set, these
+    #: attributes have to be set explicitly.
     beamformer = Property()
 
     # private storage of beamformer instance
     _beamformer = Instance(BeamformerBase)
 
-    #: The floating-number-precision of the PSFs. Default is 64 bit.
+    #: Specifies the floating-point precision used for the PSFs. Default is ``'float64'``.
     psf_precision = Enum('float64', 'float32', desc='precision of PSF')
 
-    #: Number of iterations, defaults to 100.
+    #: Number of iterations for the DAMAS solver. Default is ``100``.
     n_iter = Int(100, desc='number of iterations')
 
-    #: Damping factor in modified gauss-seidel
+    #: Damping factor for the modified Gauss-Seidel DAMAS approach. Default is ``1.0``.
     damp = Float(1.0, desc='damping factor in modified gauss-seidel-DAMAS-approach')
 
-    #: Flag that defines how to calculate and store the point spread function,
-    #: defaults to 'full'. See :attr:`PointSpreadFunction.calcmode` for details.
+    #: Flag that defines how to calculate and store the point spread function.
+    #: Default is ``'single'``.
+    #:
+    #: - ``'full'``: Calculate the full PSF (for all grid points) in one go (should be used if the
+    #:   PSF at all grid points is needed, as with :class:`DAMAS<BeamformerDamas>`)
+    #: - ``'single'``: Calculate the PSF for the grid points defined by
+    #:   :attr:`grid_indices<PointSpreadFunction.grid_indices>`, one by one (useful if not all PSFs
+    #:   are needed, as with :class:`CLEAN<BeamformerClean>`)
+    #: - ``'block'``: Calculate the PSF for the grid points defined by
+    #:   :attr:`grid_indices<PointSpreadFunction.grid_indices>`, in one go (useful if not all PSFs
+    #:   are needed, as with :class:`CLEAN<BeamformerClean>`)
+    #: - ``'readonly'``: Do not attempt to calculate the PSF since it should already be cached
+    #:   (useful if multiple processes have to access the cache file)
     calcmode = Enum('full', 'single', 'block', 'readonly', desc='mode of psf calculation / storage')
 
-    # internal identifier
+    #: A unique identifier for the function, based on its properties. (read-only)
     digest = Property(
         depends_on=BEAMFORMER_BASE_DIGEST_DEPENDENCIES + ['n_iter', 'damp', 'psf_precision'],
     )
@@ -1198,23 +1340,22 @@ class BeamformerDamas(BeamformerBase):
         self.steer = self.beamformer.steer
 
     def _calc(self, ind):
-        """Calculates the result for the frequencies defined by :attr:`freq_data`.
+        # Calculate the result for the frequencies defined by :attr:`freq_data`.
+        #
+        # This is an internal helper function that is automatically called when
+        # accessing the beamformer's :attr:`result` or calling
+        # its :meth:`synthetic` method.
+        #
+        # Parameters
+        # ----------
+        # ind : array of int
+        #     This array contains all frequency indices for which (re)calculation is
+        #     to be performed
+        #
+        # Returns
+        # -------
+        # This method only returns values through :attr:`_ac` and :attr:`_fr`
 
-        This is an internal helper function that is automatically called when
-        accessing the beamformer's :attr:`result` or calling
-        its :meth:`synthetic` method.
-
-        Parameters
-        ----------
-        ind : array of int
-            This array contains all frequency indices for which (re)calculation is
-            to be performed
-
-        Returns
-        -------
-        This method only returns values through :attr:`_ac` and :attr:`_fr`
-
-        """
         f = self._f
         normfactor = self.sig_loss_norm()
         p = PointSpreadFunction(steer=self.steer, calcmode=self.calcmode, precision=self.psf_precision)
@@ -1557,7 +1698,7 @@ class BeamformerClean(BeamformerBase):
     # private storage of beamformer instance
     _beamformer = Instance(BeamformerBase)
 
-    #: The floating-number-precision of the PSFs. Default is 64 bit.
+    #: The floating-number-precision of the PSFs. Default is ``'float64'``.
     psf_precision = Enum('float64', 'float32', desc='precision of PSF.')
 
     # iteration damping factor
@@ -2163,7 +2304,7 @@ class BeamformerGIB(BeamformerEig):  # BeamformerEig #BeamformerBase
         num_points = self.steer.grid.size
         hh = zeros((1, num_points, num_channels), dtype='D')
 
-        # Generate a cross spectral matrix, and perform the eigenvalue decomposition
+        # Generate a cross-spectral matrix, and perform the eigenvalue decomposition
         for i in ind:
             # for monopole and source strength Q needs to define density
             # calculate a transfer matrix A

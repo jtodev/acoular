@@ -1,7 +1,8 @@
 # ------------------------------------------------------------------------------
 # Copyright (c) Acoular Development Team.
 # ------------------------------------------------------------------------------
-"""Implements calibration of multichannel time signals.
+"""
+Implements calibration of multichannel time signals.
 
 .. autosummary::
     :toctree: generated/
@@ -26,13 +27,13 @@ from .internal import digest
 
 @deprecated_alias({'from_file': 'file'})
 class Calib(InOut):
-    """Processing block for handling calibration data in `*.xml` or NumPy format.
+    """
+    Processing block for handling calibration data in `*.xml` or NumPy format.
 
     This class implements the application of calibration factors to the data obtained from its
     :attr:`source`. The calibrated data can be accessed (e.g. for use in a block chain) via the
     :meth:`result` generator. Depending on the source type, calibration can be performed in the
     time or frequency domain.
-
 
     Examples
     --------
@@ -80,15 +81,13 @@ class Calib(InOut):
     #: Name of the .xml file to be imported.
     file = File(filter=['*.xml'], exists=True, desc='name of the xml file to import')
 
-    #: Number of microphones in the calibration data,
-    #: is set automatically when read from file or when data is set.
+    #: Number of microphones in the calibration data, is set automatically when read from file or
+    #: when data is set.
     num_mics = CLong(0, desc='number of microphones in the geometry')
 
-    #: Array of calibration factors,
-    #: is set automatically when read from file.
-    #: Can be set manually by specifying a NumPy array with shape (num_channels, ) if
-    #: :attr:`source` yields time domain signals. For frequency domain signals, the expected
-    #: shape is (num_channels * num_freqs).
+    #: Array of calibration factors, is set automatically when read from file. Can be set manually
+    #: by specifying a NumPy array with shape (num_channels, ) if :attr:`source` yields time domain
+    #: signals. For frequency domain signals, the expected shape is (num_channels * num_freqs).
     data = CArray(desc='calibration data')
 
     #: Channels that are to be treated as invalid.
@@ -97,7 +96,7 @@ class Calib(InOut):
     #: Channel mask to serve as an index for all valid channels, is set automatically.
     channels = Property(depends_on=['invalid_channels', 'num_mics'], desc='channel mask')
 
-    # Internal identifier
+    # Internal identifier.
     digest = Property(depends_on=['source.digest', 'data'])
 
     @on_trait_change('data')
@@ -117,7 +116,12 @@ class Calib(InOut):
 
     @on_trait_change('file')
     def import_data(self):
-        """Loads the calibration data from `*.xml` file ."""
+        """
+        Load the calibration data from `*.xml` file .
+
+        Upon a change of :attr:`file`, :attr:`data` and :attr:`num_mics` get updated according to
+        the data in the given `*.xml` file .
+        """
         doc = xml.dom.minidom.parse(self.file)
         names = []
         data = []
@@ -128,7 +132,7 @@ class Calib(InOut):
         self.num_mics = self.data.shape[0]
 
     def __validate_data(self):
-        """Validates the calibration data."""
+        """Validate the calibration data."""
         if self.data is None:
             msg = 'No calibration data available.'
             raise ValueError(msg)
@@ -150,22 +154,23 @@ class Calib(InOut):
             raise ValueError(msg)
 
     def result(self, num):
-        """Python generator that processes the source data and yields the time-signal block-wise.
+        """
+        Python generator that processes the source data and yields the time-signal block-wise.
 
         This method needs to be implemented by the derived classes.
 
         Parameters
         ----------
         num : int
-            This parameter defines the size of the blocks to be yielded
-            (i.e. the number of samples per block)
+            This parameter defines the size of the blocks to be yielded (i.e. the number of samples
+            per block).
 
         Yields
         ------
         numpy.ndarray
-            Two-dimensional output data block of shape (num, sourcechannels)
-            where sourcechannels is num_channels if the source data is in the time domain
-            or sourcechannels is num_channels*num_freqs if the source data is in the frequency
+            Two-dimensional output data block of shape (num, sourcechannels) where sourcechannels is
+            num_channels if the source data is in the time domain or sourcechannels is
+            num_channels*num_freqs if the source data is in the frequency
             domain.
         """
         self.__validate_data()

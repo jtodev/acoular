@@ -17,8 +17,7 @@ def deprecated_alias(old2new, read_only=False, removal_version=''):
     Parameters
     ----------
     old2new: dict
-        Dictionary containing the deprecated trait names as keys and
-        their new names as values.
+        Dictionary containing the deprecated trait names as keys and their new names as values.
     read_only: bool or list
         If True, all deprecated traits will be "read only".
         If False (default), all deprecated traits can be read and set.
