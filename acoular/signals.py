@@ -1,7 +1,8 @@
 # ------------------------------------------------------------------------------
 # Copyright (c) Acoular Development Team.
 # ------------------------------------------------------------------------------
-"""Implements signal generators for the simulation of acoustic sources.
+"""
+Implements signal generators for the simulation of acoustic sources.
 
 .. autosummary::
     :toctree: generated/
@@ -43,23 +44,35 @@ from .internal import digest
 
 @deprecated_alias({'numsamples': 'num_samples'})
 class SignalGenerator(ABCHasStrictTraits):
-    """Virtual base class for a simple one-channel signal generator.
+    """
+    ABC for a simple one-channel signal generator.
 
-    Defines the common interface for all SignalGenerator classes. This class
-    may be used as a base for specialized SignalGenerator implementations. It
-    should not be used directly as it contains no real functionality.
+    This ABC defines the common interface and attributes for all signal generator implementations.
+    It provides a template for generating one-channel signals with specified amplitude,
+    sampling frequency, and duration. Subclasses should implement the core functionality,
+    including signal generation and computation of the internal identifier.
+
+    Notes
+    -----
+    This class should not be instantiated directly. Instead, use a subclass that
+    implements the required methods for signal generation.
+
+    See Also
+    --------
+    :func:`scipy.signal.resample` : Used for resampling signals in the :meth:`usignal` method.
     """
 
-    #: RMS amplitude of source signal (for point source: in 1 m distance).
+    #: Root mean square (RMS) amplitude of the signal. For a point source,
+    #: this corresponds to the RMS amplitude at a distance of 1 meter. Default is ``1.0``.
     rms = Float(1.0, desc='rms amplitude')
 
-    #: Sampling frequency of the signal.
+    #: Sampling frequency of the signal in Hz. Default is ``1.0``.
     sample_freq = Float(1.0, desc='sampling frequency')
 
-    #: Number of samples to generate.
+    #: The number of samples to generate for the signal.
     num_samples = CLong
 
-    # internal identifier
+    #: A unique identifier based on the generator properties. (read-only)
     digest = Property(depends_on=['rms', 'sample_freq', 'num_samples'])
 
     @abstractmethod
@@ -68,36 +81,74 @@ class SignalGenerator(ABCHasStrictTraits):
 
     @abstractmethod
     def signal(self):
-        """Deliver the signal."""
+        """
+        Generate and return the signal.
+
+        This method must be implemented by subclasses to provide the generated signal
+        as a 1D array of samples.
+        """
 
     def usignal(self, factor):
-        """Delivers the signal resampled with a multiple of the sampling freq.
+        """
+        Resample the signal at a higher sampling frequency.
 
-        Uses fourier transform method for resampling (from scipy.signal).
+        This method uses Fourier transform-based resampling to deliver the signal at a
+        sampling frequency that is a multiple of the original :attr:`sample_freq`.
+        The resampled signal has a length of ``factor * num_samples``.
 
         Parameters
         ----------
-        factor : integer
-            The factor defines how many times the new sampling frequency is
-            larger than :attr:`sample_freq`.
+        factor : int
+            The resampling factor. Defines how many times larger the new sampling frequency is
+            compared to the original :attr:`sample_freq`.
 
         Returns
         -------
-        array of floats
-            The resulting signal of length `factor` * :attr:`num_samples`.
+        :class:`numpy.ndarray`
+            The resampled signal as a 1D array of floats.
+
+        Notes
+        -----
+        This method relies on the :func:`scipy.signal.resample` function for resampling.
+
+        Examples
+        --------
+        Resample a signal by a factor of 4:
+
+        >>> from acoular import SineGenerator  # Class extending SignalGenerator
+        >>> sg = SineGenerator(rms=1.0, sample_freq=100.0, num_samples=1000)
+        >>> resampled_signal = sg.usignal(4)
+        >>> len(resampled_signal)
+        4000
         """
         return resample(self.signal(), factor * self.num_samples)
 
 
 class WNoiseGenerator(SignalGenerator):
-    """White noise signal generator."""
+    """
+    Generate White noise signal.
 
-    #: Seed for random number generator, defaults to 0.
+    This class generates white noise signals with a specified
+    :attr:`root mean square (RMS)<SignalGenerator.rms>` amplitude,
+    :attr:`number of samples<SignalGenerator.num_samples>`, and
+    :attr:`sampling frequency<SignalGenerator.sample_freq>`. The white noise is generated using a
+    :obj:`random number generator<numpy.random.RandomState.standard_normal>` initialized with a
+    :attr:`user-defined seed<seed>` for reproducibility.
+
+    See Also
+    --------
+    :obj:`numpy.random.RandomState.standard_normal` :
+        Used here to generate normally distributed noise.
+    :class:`acoular.signals.PNoiseGenerator` : For pink noise generation.
+    :class:`acoular.sources.UncorrelatedNoiseSource` : For per-channel noise generation.
+    """
+
+    #: Seed for random number generator. Default is ``0``.
     #: This parameter should be set differently for different instances
     #: to guarantee statistically independent (non-correlated) outputs.
     seed = Int(0, desc='random seed value')
 
-    # internal identifier
+    #: Internal identifier based on generator properties. (read-only)
     digest = Property(depends_on=['rms', 'num_samples', 'sample_freq', 'seed'])
 
     @cached_property
@@ -105,40 +156,81 @@ class WNoiseGenerator(SignalGenerator):
         return digest(self)
 
     def signal(self):
-        """Deliver the signal.
+        """
+        Generate and deliver the white noise signal.
+
+        The signal is created using a Gaussian distribution with mean 0 and variance 1,
+        scaled by the :attr:`RMS<SignalGenerator.rms>` amplitude of the generator.
 
         Returns
         -------
-        Array of floats
-            The resulting signal as an array of length :attr:`~SignalGenerator.num_samples`.
+        :class:`numpy.ndarray`
+            A 1D array of floats containing the generated white noise signal.
+            The length of the array is equal to :attr:`~SignalGenerator.num_samples`.
+
+        Examples
+        --------
+        Generate white noise with an RMS amplitude of 1.0 and 0.5:
+
+        >>> from acoular import WNoiseGenerator
+        >>> from numpy import mean
+        >>>
+        >>> # White noise with RMS of 1.0
+        >>> gen1 = WNoiseGenerator(rms=1.0, num_samples=1000, seed=42)
+        >>> signal1 = gen1.signal()
+        >>>
+        >>> # White noise with RMS of 0.5
+        >>> gen2 = WNoiseGenerator(rms=0.5, num_samples=1000, seed=24)
+        >>> signal2 = gen2.signal()
+        >>>
+        >>> mean(signal1) > mean(signal2)
+        np.True_
+
+        Ensure different outputs with different seeds:
+
+        >>> gen1 = WNoiseGenerator(num_samples=3, seed=42)
+        >>> gen2 = WNoiseGenerator(num_samples=3, seed=73)
+        >>> gen1.signal() == gen2.signal()
+        array([False, False, False])
         """
         rnd_gen = RandomState(self.seed)
         return self.rms * rnd_gen.standard_normal(self.num_samples)
 
 
 class PNoiseGenerator(SignalGenerator):
-    """Pink noise signal generator.
+    """
+    Generate pink noise signal.
 
-    Simulation of pink noise is based on the Voss-McCartney algorithm.
-    Ref.:
+    The :class:`PNoiseGenerator` class generates pink noise signals,
+    which exhibit a :math:`1/f` power spectral density. Pink noise is characterized by
+    equal energy per octave, making it useful in various applications such as audio testing,
+    sound synthesis, and environmental noise simulations.
 
-      * S.J. Orfanidis: Signal Processing (2010), pp. 729-733
-      * online discussion: http://www.firstpr.com.au/dsp/pink-noise/
+    The pink noise simulation is based on the Voss-McCartney algorithm, which iteratively adds
+    noise with increasing wavelength to achieve the desired :math:`1/f` characteristic.
 
-    The idea is to iteratively add larger-wavelength noise to get 1/f
-    characteristic.
+    References
+    ----------
+    - S.J. Orfanidis: Signal Processing (2010), pp. 729-733 :cite:`Orfanidis2010`
+    - Online discussion: http://www.firstpr.com.au/dsp/pink-noise/
+
+    See Also
+    --------
+    :class:`acoular.signals.WNoiseGenerator` : For white noise generation.
+    :class:`acoular.sources.UncorrelatedNoiseSource` : For per-channel noise generation.
     """
 
-    #: Seed for random number generator, defaults to 0.
-    #: This parameter should be set differently for different instances
-    #: to guarantee statistically independent (non-correlated) outputs.
+    #: Seed for the random number generator. Changing this value ensures statistically independent
+    #: (non-correlated) outputs across different instances. Default is ``0``.
     seed = Int(0, desc='random seed value')
 
-    #: "Octave depth" -- higher values for 1/f spectrum at low frequencies,
-    #: but longer calculation, defaults to 16.
+    #: "Octave depth" of the pink noise generation. Higher values result in a better approximation
+    #: of the :math:`1/f` spectrum at low frequencies but increase computation time. The  maximum
+    #: allowable value depends on the :attr:`number of samples<SignalGenerator.num_samples>`.
+    #: Default is ``16``.
     depth = Int(16, desc='octave depth')
 
-    # internal identifier
+    # A unique identifier based on the generator properties. (read-only)
     digest = Property(depends_on=['rms', 'num_samples', 'sample_freq', 'seed', 'depth'])
 
     @cached_property
@@ -146,6 +238,27 @@ class PNoiseGenerator(SignalGenerator):
         return digest(self)
 
     def signal(self):
+        """
+        Generate and deliver the pink noise signal.
+
+        The signal is computed using the Voss-McCartney algorithm, which generates noise
+        with a :math:`1/f` power spectral density. The method ensures that the output has the
+        desired :attr:`RMS<SignalGenerator.rms>` amplitude and spectrum.
+
+        Returns
+        -------
+        :class:`numpy.ndarray`
+            A 1D array of floats containing the generated pink noise signal. The length
+            of the array is equal to :attr:`~SignalGenerator.num_samples`.
+
+        Notes
+        -----
+        - The "depth" parameter controls the number of octaves included in the pink noise
+          simulation. If the specified depth exceeds the maximum possible value based on
+          the number of samples, it is automatically adjusted, and a warning is printed.
+        - The output signal is scaled to have the same overall level as white noise by dividing
+          the result by ``sqrt(depth + 1.5)``.
+        """
         nums = self.num_samples
         depth = self.depth
         # maximum depth depending on number of samples
