@@ -50,16 +50,42 @@ templates_path = ['_templates']
 # -----------------------
 # see https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output for details
 
-html_theme = 'haikuac'
+html_theme = 'sphinx_rtd_theme'
 html_theme_path = ['_themes/']
 html_static_path = ['_static']
-html_favicon = '_static/acoular_logo.ico'
+html_favicon = '_static/acoular_logo.svg'
+html_title = 'Acoular %s documentation'.format(version)
 html_context = {
-    'logo': 'Acoular_logo.png',  # Filename in _static folder
+    # 'logo': 'acoular_logo.svg',  # Filename in _static folder
+    'current_version': 'latest',
+    # 'conf_py_path': '/source/', # Path in the checkout to the docs root
+    
+    # GitHub
+    'display_github': True, # Integrate GitHub
+    'github_user': 'acoular', # User name
+    'github_repo': 'acoular', # Repo name
 }
+html_logo = '_static/acoular_title.svg'
 html_last_updated_fmt = '%b %d, %Y'
 # If true, the reST sources are included in the HTML build as _sources/<name>.
 html_copy_source = False
+html_theme_options = {
+    # 'analytics_id': 'G-XXXXXXXXXX',  #  Provided by Google in your dashboard
+    'logo_only': True,
+    'prev_next_buttons_location': 'bottom',
+    'style_external_links': True,
+    'vcs_pageview_mode': '',
+    # 'style_nav_header_background': 'white',
+    'flyout_display': 'hidden',
+    'version_selector': True,
+    'language_selector': True,
+    # Toc options
+    'collapse_navigation': True,
+    'sticky_navigation': True,
+    'navigation_depth': 4,
+    'includehidden': True,
+    'titles_only': False,
+}
 
 #%%
 # Options for LaTeX output
