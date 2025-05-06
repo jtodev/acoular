@@ -12,6 +12,7 @@ Implement support for multidimensional grids and integration sectors.
     RectGrid3D
     ImportGrid
     LineGrid
+    PolarGrid
     MergeGrid
     Sector
     SingleSector
@@ -38,6 +39,7 @@ from numpy import (
     asarray,
     concatenate,
     copysign,
+    cos,
     fabs,
     inf,
     isscalar,
@@ -46,7 +48,9 @@ from numpy import (
     newaxis,
     ones,
     ones_like,
+    pi,
     s_,
+    sin,
     sum,  # noqa: A004
     tile,
     unique,
@@ -578,7 +582,7 @@ class RectGrid3D(RectGrid):
     #: The lower z-limit that defines the grid. Default is ``-1``.
     z_min = Float(-1.0, desc='minimum  z-value')
 
-    #: The upper z-limit that defines the grid. Default is ``1``.
+    #: The upper z-limit that defines the grid. Default is ``1.0``.
     z_max = Float(1.0, desc='maximum  z-value')
 
     #: Number of grid points along x-axis. (read-only)
@@ -1587,3 +1591,260 @@ class MultiSector(Sector):
             inds += sec.contains(pos)
 
         return inds.astype(bool)
+
+
+class PolarGrid(Grid):
+    """
+    Define a 3D grid in spherical coordinates.
+
+    This grid is defined by ranges of :attr:`radii<rad>`, :attr:`phi angles<phi>`, and
+    :attr:`theta angles<theta>` from the :attr:`origin`. The grid points are arranged in
+    spherical shells around the :attr:`origin`. This is particularly useful for microphone
+    array applications that require grid points in spherical coordinates, such as spherical
+    array configurations.
+
+    See Also
+    --------
+    :class:`RectGrid` : For a 2D Cartesian grid.
+    :class:`RectGrid3D` : For a 3D Cartesian grid.
+    :class:`LineGrid` : For a 1D grid.
+
+    Examples
+    --------
+    Create a polar grid with points at a single radius and angle:
+
+    >>> import acoular as ac
+    >>> polar_grid = ac.PolarGrid()
+    >>> polar_grid.rad = 1.0
+    >>> polar_grid.phi = 0.0
+    >>> polar_grid.theta = 45.0
+    >>> polar_grid.origin = (0.0, 0.0, 0.0)
+    >>> polar_grid.size  # Returns the number of grid points
+    1
+
+    Or with ranges of values:
+
+    >>> polar_grid.rad = (1.0, 2.0)
+    >>> polar_grid.phi = (0.0, 180.0)
+    >>> polar_grid.theta = (0.0, 90.0)
+    >>> polar_grid.rad_increment = 0.5
+    >>> polar_grid.phi_increment = 45.0
+    >>> polar_grid.theta_increment = 30.0
+    >>> polar_grid.size  # Returns the number of grid points
+    60
+    """
+
+    # Private traits for storing the parameter values
+    _rad = Union(Float(), Tuple(Float(), Float()), default_value=1.0, desc='radius or radius range')
+    _phi = Union(Float(), Tuple(Float(), Float()), default_value=0.0, desc='phi angle or range in degrees')
+    _theta = Union(Float(), Tuple(Float(), Float()), default_value=90.0, desc='theta angle or range in degrees')
+
+    #: The radial increment between points. Default is ``0.1``.
+    rad_increment = Float(0.1, desc='radial increment')
+
+    #: The phi angular increment between points. Default is ``10``.
+    phi_increment = Float(10, desc='phi angular increment in degrees')
+
+    #: The theta angular increment between points. Default is ``10``.
+    theta_increment = Float(10, desc='theta angular increment in degrees')
+
+    #: The origin point of the grid. Default is ``(0.0, 0.0, 0.0)``.
+    origin = Tuple((0.0, 0.0, 0.0), desc='origin point of the grid')
+
+    #: Number of grid points along the radial direction. (read-only)
+    nrad_steps = Property(desc='number of grid points along radial direction')
+
+    #: Number of grid points along the phi direction. (read-only)
+    nphi_steps = Property(desc='number of grid points along phi direction')
+
+    #: Number of grid points along the theta direction. (read-only)
+    ntheta_steps = Property(desc='number of grid points along theta direction')
+
+    #: A unique identifier for the grid, based on its properties. (read-only)
+    digest = Property(
+        depends_on=['_rad', '_phi', '_theta', 'rad_increment', 'phi_increment', 'theta_increment', 'origin'],
+        desc='unique identifier for the grid',
+    )
+
+    @cached_property
+    def _get_digest(self):
+        return digest(self)
+
+    def _get_rad(self):
+        return self._rad
+
+    def _set_rad(self, value):
+        if isscalar(value):
+            self._rad = float(value)
+        else:
+            self._rad = tuple(float(x) for x in value)
+
+    def _get_phi(self):
+        return self._phi
+
+    def _set_phi(self, value):
+        if isscalar(value):
+            self._phi = float(value)
+        else:
+            self._phi = tuple(float(x) for x in value)
+
+    def _get_theta(self):
+        return self._theta
+
+    def _set_theta(self, value):
+        if isscalar(value):
+            self._theta = float(value)
+        else:
+            self._theta = tuple(float(x) for x in value)
+
+    #: Single radius or tuple of ``(min_radius, max_radius)`` from the origin
+    #: at which the grid points are placed.
+    rad = Property(_get_rad, _set_rad)
+
+    #: Single phi angle or tuple of ``(min_phi, max_phi)`` in degrees,
+    #: measured from the positive x-axis in the xy-plane.
+    phi = Property(_get_phi, _set_phi)
+
+    #: Single theta angle or tuple of ``(min_theta, max_theta)`` in degrees,
+    #: measured from the positive z-axis.
+    theta = Property(_get_theta, _set_theta)
+
+    @property_depends_on(['_rad', 'rad_increment'])
+    def _get_nrad_steps(self):
+        if isscalar(self._rad):
+            return 1
+        return int(absolute((self._rad[1] - self._rad[0]) // self.rad_increment)) + 1
+
+    @property_depends_on(['_phi', 'phi_increment'])
+    def _get_nphi_steps(self):
+        if isscalar(self._phi):
+            return 1
+        return int(absolute((self._phi[1] - self._phi[0]) // self.phi_increment)) + 1
+
+    @property_depends_on(['_theta', 'theta_increment'])
+    def _get_ntheta_steps(self):
+        if isscalar(self._theta):
+            return 1
+        return int(absolute((self._theta[1] - self._theta[0]) // self.theta_increment)) + 1
+
+    @property_depends_on(['nrad_steps', 'nphi_steps', 'ntheta_steps'])
+    def _get_size(self):
+        return self.nrad_steps * self.nphi_steps * self.ntheta_steps
+
+    @property_depends_on(['nrad_steps', 'nphi_steps', 'ntheta_steps'])
+    def _get_shape(self):
+        return (self.nrad_steps, self.nphi_steps, self.ntheta_steps)
+
+    @property_depends_on(['_rad', '_phi', '_theta', 'rad_increment', 'phi_increment', 'theta_increment', 'origin'])
+    def _get_pos(self):
+        # Generate arrays for each coordinate
+        if isscalar(self._rad):
+            radii = array([self._rad])
+        else:
+            radii = arange(self._rad[0], self._rad[1] + self.rad_increment, self.rad_increment)
+
+        if isscalar(self._phi):
+            phis = array([self._phi])
+        else:
+            phis = arange(self._phi[0], self._phi[1] + self.phi_increment, self.phi_increment)
+
+        if isscalar(self._theta):
+            thetas = array([self._theta])
+        else:
+            thetas = arange(self._theta[0], self._theta[1] + self.theta_increment, self.theta_increment)
+
+        # Convert angles to radians
+        phis_rad = phis * pi / 180.0
+        thetas_rad = thetas * pi / 180.0
+
+        # Create meshgrid of coordinates
+        r, p, t = mgrid[
+            radii[0] : radii[-1] : len(radii) * 1j,
+            phis_rad[0] : phis_rad[-1] : len(phis_rad) * 1j,
+            thetas_rad[0] : thetas_rad[-1] : len(thetas_rad) * 1j,
+        ]
+
+        # Convert to Cartesian coordinates
+        x = r * sin(t) * cos(p)
+        y = r * sin(t) * sin(p)
+        z = r * cos(t)
+
+        # Reshape to (3, size) array and add origin offset
+        pos = array([x.flatten(), y.flatten(), z.flatten()])
+        pos[0] += self.origin[0]
+        pos[1] += self.origin[1]
+        pos[2] += self.origin[2]
+
+        return pos
+
+    def index(self, radius, phi, theta):
+        """
+        Find the index of the grid point closest to the given spherical coordinates.
+
+        Parameters
+        ----------
+        radius : :class:`float`
+            The radius for which to find the closest grid point.
+        phi : :class:`float`
+            The phi angle in degrees for which to find the closest grid point.
+        theta : :class:`float`
+            The theta angle in degrees for which to find the closest grid point.
+
+        Returns
+        -------
+        :class:`tuple`
+            A tuple ``(r_idx, phi_idx, theta_idx)`` containing the indices of
+            the closest grid point.
+        """
+        # Generate coordinate arrays
+        if isscalar(self._rad):
+            radii = array([self._rad])
+        else:
+            radii = arange(self._rad[0], self._rad[1] + self.rad_increment, self.rad_increment)
+
+        if isscalar(self._phi):
+            phis = array([self._phi])
+        else:
+            phis = arange(self._phi[0], self._phi[1] + self.phi_increment, self.phi_increment)
+
+        if isscalar(self._theta):
+            thetas = array([self._theta])
+        else:
+            thetas = arange(self._theta[0], self._theta[1] + self.theta_increment, self.theta_increment)
+
+        # Find closest indices
+        r_idx = argmin(fabs(radii - radius))
+        phi_idx = argmin(fabs(phis - phi))
+        theta_idx = argmin(fabs(thetas - theta))
+
+        return (r_idx, phi_idx, theta_idx)
+
+    def indices(self, radius1, phi1, theta1, radius2, phi2, theta2):
+        """
+        Find the indices of grid points between two sets of spherical coordinates.
+
+        Parameters
+        ----------
+        radius1, radius2 : :class:`float`
+            The two radii.
+        phi1, phi2 : :class:`float`
+            The two phi angles in degrees.
+        theta1, theta2 : :class:`float`
+            The two theta angles in degrees.
+
+        Returns
+        -------
+        :class:`tuple`
+            A tuple containing the start and end indices of the grid points between the two
+            sets of spherical coordinates.
+        """
+        r1_idx, p1_idx, t1_idx = self.index(radius1, phi1, theta1)
+        r2_idx, p2_idx, t2_idx = self.index(radius2, phi2, theta2)
+
+        # Ensure r1_idx <= r2_idx
+        if r1_idx > r2_idx:
+            r1_idx, r2_idx = r2_idx, r1_idx
+            p1_idx, p2_idx = p2_idx, p1_idx
+            t1_idx, t2_idx = t2_idx, t1_idx
+
+        return (r1_idx, p1_idx, t1_idx), (r2_idx, p2_idx, t2_idx)

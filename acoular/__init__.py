@@ -67,6 +67,7 @@ from .grids import (
     RectSector,
     RectSector3D,
     Sector,
+    PolarGrid,
 )
 from .microphones import MicGeom
 from .process import Average, Cache, SampleSplitter, TimeAverage, TimeCache
