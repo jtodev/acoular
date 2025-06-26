@@ -4,7 +4,11 @@ What's new
 
 Upcoming Release
 ------------------------
-
+    **Internal**
+        * introduces speedup for :class:'~acoular.sources.MovingPointSource' by using block-wise processing
+        * fixes :class:`~acoular.tbeamform.BeamformerTime` crashing if buffer exceeds processing block size
+        * fixes deprecation issue for output parameters of scipy.optimize.fmin_l_bfgs_b solver
+        * excludes `scipy` version 1.16 from the dependencies due to bug affecting the `scipy.signal.tf2sos` function
 
 25.04
 ------------------------
@@ -12,6 +16,8 @@ Upcoming Release
     **Tests**
         * fixes unpickable classes and adds pickle test
 
+    **Documentation**
+        * adds comments for missing meter units to docstrings in :mod:`acoular.microphones` and :mod:`acoular.grids`
 
 25.03
 ------------------------
