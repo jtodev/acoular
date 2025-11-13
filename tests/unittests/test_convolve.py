@@ -37,7 +37,8 @@ def test_time_convolve(time_data_source, extend_signal):
     ids=['3d-kernel', 'mismatched-channels'],
 )
 def test_time_convolve_kernel_validation_errors(randn_params, error_msg):
-    """Test TimeConvolve kernel validation errors.
+    """
+    Test TimeConvolve kernel validation errors.
 
     Tests the TimeConvolve class from tprocess.py.
     Covers the _validate_kernel() method:
@@ -52,66 +53,52 @@ def test_time_convolve_kernel_validation_errors(randn_params, error_msg):
         _ = tools.return_result(conv)
 
 
-# @parametrize(
-#     'kernel_shape,num_channels',
-#     [((10,), 2), ((10, 1), 3)],
-#     ids=['1d-kernel', 'broadcast-kernel'],
-# )
-# def test_time_convolve_kernel_broadcasting(kernel_shape, num_channels):
-#     """Test TimeConvolve kernel broadcasting and reshaping.
+def test_time_convolve_output_blocks_exceed_signal_blocks():
+    """
+    Test TimeConvolve when output blocks exceed signal blocks (R > Q).
 
-#     Tests the TimeConvolve class from tprocess.py.
-#     Covers:
-#     - _validate_kernel() method for 1D kernels (automatic reshaping)
-#     - Broadcasting behavior when kernel has shape (L, 1) and source has multiple channels
-#     """
-#     source = TimeSamples(sample_freq=51200, data=np.random.randn(100, num_channels))
-#     kernel = np.random.randn(*kernel_shape)
+    Tests the TimeConvolve class from tprocess.py.
+    Covers the for-loop: `for _ in range(R - Q):` in the result() method.
+    This path is triggered when extend_signal=True and the convolution output
+    requires more blocks than the input signal provides, necessitating additional
+    processing iterations with zero-padded buffers.
 
-#     conv = TimeConvolve(kernel=kernel, source=source)
-#     res = tools.return_result(conv)
+    Specifically covers lines in result() method:
+    - Loop iteration when R - Q > 0
+    - _append_to_fdl() calls with zero-padded buffers
+    - _spectral_sum() computation for tail blocks
+    - Buffer shifting with zero concatenation
+    - Yielding of tail blocks after signal exhausted
+    """
+    # Design parameters to ensure R > Q:
+    # - Use extend_signal=True so output_size = L + M - 1
+    # - Make kernel long relative to signal so R (output blocks) > Q (signal blocks)
 
-#     # Check that result has correct shape
-#     assert res.shape[1] == num_channels
+    signal_samples = 100  # M = 100
+    kernel_samples = 150  # L = 150
+    block_size = 64  # num = 64
 
-#     # Verify that the same kernel was applied to all channels
-#     sig = tools.return_result(source)
-#     for i in range(num_channels):
-#         ref = np.convolve(conv.kernel[:, 0], sig[:, i])
-#         np.testing.assert_allclose(res[:, i], ref[: res.shape[0]], rtol=1e-5, atol=1e-8)
+    # With extend_signal=True:
+    # output_size = L + M - 1 = 150 + 100 - 1 = 249
+    # Q = ceil(M / num) = ceil(100 / 64) = 2 (signal blocks)
+    # R = ceil(output_size / num) = ceil(249 / 64) = 4 (output blocks)
+    # R - Q = 4 - 2 = 2, so loop executes 2 times
 
+    source = TimeSamples(sample_freq=51200, data=np.random.randn(signal_samples, 2))
+    kernel = np.random.randn(kernel_samples, 2)
 
-# @parametrize(
-#     'signal_samples,kernel_samples,block_size,extend_signal',
-#     [
-#         (10, 5, 128, True),  # very short signal (R==1)
-#         (500, 200, 64, False),  # multiple kernel blocks (P>1)
-#         (64, 64, 64, False),  # exact block alignment
-#         (300, 50, 128, True),  # block_size=128
-#         (300, 50, 64, True),  # block_size=64
-#         (300, 50, 32, True),  # block_size=32
-#     ],
-#     ids=['short-signal', 'long-kernel', 'exact-alignment', 'num-128', 'num-64', 'num-32'],
-# )
-# def test_time_convolve_edge_cases(signal_samples, kernel_samples, block_size, extend_signal):
-#     """Test TimeConvolve with various edge cases.
+    conv = TimeConvolve(kernel=kernel, source=source, extend_signal=True)
 
-#     Tests the TimeConvolve class from tprocess.py.
-#     Covers:
-#     - Very short signals (R == 1 case) - early return after single block
-#     - Multiple kernel blocks (P > 1) - kernel splitting in _get__kernel_blocks()
-#     - Exact block alignment (last_size == 0) - final_len calculation
-#     - Different block sizes - various paths through result() method
-#     """
-#     source = TimeSamples(sample_freq=51200, data=np.random.randn(signal_samples, 2))
-#     kernel = np.random.randn(kernel_samples, 2)
+    # Manually iterate to ensure all blocks are generated
+    blocks = list(conv.result(num=block_size))
 
-#     conv = TimeConvolve(kernel=kernel, source=source, extend_signal=extend_signal)
-#     res = tools.return_result(conv, num=block_size)
+    # Should have R = 4 blocks total
+    assert len(blocks) == 4, f'Expected 4 blocks, got {len(blocks)}'
 
-#     # Verify correctness against numpy convolve
-#     sig = tools.return_result(source)
-#     for i in range(2):
-#         ref = np.convolve(kernel[:, i], sig[:, i])
-#         expected_len = len(ref) if extend_signal else max(signal_samples, kernel_samples)
-#         np.testing.assert_allclose(res[:, i], ref[:expected_len], rtol=1e-5, atol=1e-8)
+    # Verify correctness against numpy convolve
+    res = np.vstack(blocks)
+    sig = tools.return_result(source)
+
+    for i in range(2):
+        ref = np.convolve(kernel[:, i], sig[:, i], mode='full')
+        np.testing.assert_allclose(res[:, i], ref, rtol=1e-5, atol=1e-8)
